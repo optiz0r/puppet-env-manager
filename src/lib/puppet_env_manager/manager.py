@@ -298,7 +298,7 @@ class EnvironmentManager(object):
         :return: str path to git-new-workdir, or None if not found
         """
         version_info = Git().version_info
-        version_string = "{0}.{1}.{2}".format(*version_info)
+        version_string = ".".join([str(i) for i in version_info])
 
         known_paths = [
             '/usr/share/doc/git/contrib/workdir/git-new-workdir',

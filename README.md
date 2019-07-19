@@ -26,6 +26,10 @@ On Fedora 30+, the following is also needed in `~/.rpmmacros`:
 
 # Changelog
 
+## v0.1.2 - 2019-07-19
+
+* Fix detection of git-new-workdir on machines with 4-part git versions
+
 ## v0.1.1 - 2019-07-19
 
 * Fix mismatching config directory name between packaging and code
