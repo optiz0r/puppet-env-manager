@@ -1,0 +1,7 @@
+# Generated content
+*.pyc
+
+# Build artefacts
+/MANIFEST
+build/*
+dist/*

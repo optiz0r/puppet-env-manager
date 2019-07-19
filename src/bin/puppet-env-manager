@@ -1,0 +1,218 @@
+#!/usr/bin/python2 -tt
+
+import argparse
+import inspect
+import logging
+import os
+import traceback
+import sys
+
+from logging.handlers import SysLogHandler
+
+from puppet_env_manager import EnvironmentManager, EnvironmentManagerConfig
+from puppet_env_manager.exceptions import MasterRepositoryMissing, EnvironmentManagerException
+
+
+def parse_args(runtime_args):
+    """ Parses command line arguments and returns the results
+
+    :return: args
+    """
+    # Root Argument parser
+    parser = argparse.ArgumentParser("Puppet Environment Manager")
+    parser.add_argument(
+        '-c', '--config', dest='config_file', default=EnvironmentManagerConfig.DEFAULT_PATH,
+        help='Path to configuration file',
+    )
+
+    logging_args = parser.add_argument_group("Logging Options")
+    logging_args.add_argument(
+        '--syslog', action='store_true',
+        help='Log to syslog instead of stdout')
+    logging_args.add_argument(
+        '-q', '--quiet', dest='quiet', action='store_true', default=False,
+        help="Reduce output verbosity, show only warnings and errors")
+    logging_args.add_argument(
+        '-d', '--debug', dest='debug', action='store_true', default=False,
+        help="Enable debug output, providing low-level implementation detail on what's happening")
+
+    # Common arguments present on all commands
+    common_args = argparse.ArgumentParser(add_help=False)
+    other_args = common_args.add_argument_group("Other Flags")
+    other_args.add_argument(
+        "--noop", action="store_true", help="No Operation mode; does not apply any changes"
+    )
+
+    manager_args = common_args.add_argument_group("Environment Manager Options")
+    manager_args.add_argument(
+        '-u', '--url', dest='git_url',
+        help='URL for the git repository which holds the puppet code (config: git_url) '
+             '(default: {0})'.format(EnvironmentManagerConfig.GIT_URL)
+    )
+    manager_args.add_argument(
+        '-e', '--environment-dir', dest='environment_dir',
+        help='Path to the environment directory, which will contain all the puppet environments '
+             '(config: environment_dir) '
+             '(default: {0})'.format(EnvironmentManagerConfig.ENVIRONMENT_DIR)
+    )
+    manager_args.add_argument(
+        '-m', '--master-repo', dest='master_repo',
+        help='Name of the master repository directory '
+             '(config: master_repo_name) '
+             '(default: {0})'.format(EnvironmentManagerConfig.MASTER_REPO_NAME)
+    )
+    manager_args.add_argument(
+        '-b', '--blacklist', dest='blacklist',
+        help='Regex pattern for selecting environments to ignore for updates '
+             '(config: blacklist) '
+             '(default: {0})'.format(EnvironmentManagerConfig.ENVIRONMENT_NAME_BLACKLIST)
+    )
+    manager_args.add_argument(
+        '--librarian-puppet', dest='librarian_puppet_path',
+        help='Path to librarian-puppet '
+             '(config: librarian_puppet_path) '
+             '(default: {0})'.format(EnvironmentManagerConfig.LIBRARIAN_PUPPET_PATH)
+    )
+
+    # Environment name is present on multiple commands
+    named_environment_args = argparse.ArgumentParser("Environment Details", add_help=False)
+    named_environment_args.add_argument('name', help="Environment name")
+
+    # Command parser
+    cmdparser = parser.add_subparsers(dest='command')
+
+    # Initialise
+    initialise_parser = cmdparser.add_parser('init', parents=[common_args])
+
+    # list
+    list_parser = cmdparser.add_parser('list', parents=[common_args])
+    list_mode = list_parser.add_mutually_exclusive_group(required=True)
+    list_mode.add_argument(
+        '--available', dest='available', action='store_true', default=False,
+        help='List available environments in git',
+    )
+    list_mode.add_argument(
+        '--installed', dest='installed', action='store_true', default=False,
+        help='List installed environments in environement dir',
+    )
+    list_mode.add_argument(
+        '--missing', dest='missing', action='store_true', default=False,
+        help='List missing environments in environement dir',
+    )
+    list_mode.add_argument(
+        '--obsolete', dest='obsolete', action='store_true', default=False,
+        help='List obsolete environments in environement dir',
+    )
+
+    # Update-all
+    update_all_parser = cmdparser.add_parser('update-all', parents=[common_args])
+
+    # Update
+    update_parser = cmdparser.add_parser('update', parents=[common_args, named_environment_args])
+
+    # Revision
+    revision_parser = cmdparser.add_parser('revision', parents=[common_args, named_environment_args])
+
+    # Cleanup
+    cleanup_parser = cmdparser.add_parser('cleanup', parents=[common_args])
+
+    # Config
+    config_parser = cmdparser.add_parser('config', parents=[common_args])
+
+    # Process the arguments
+    args = parser.parse_args(runtime_args)
+
+    return args
+
+
+def main():
+    logger = logging.getLogger()
+
+    args = parse_args(sys.argv[1:])
+
+    # Logging level
+    if args.debug is True:
+        logger.setLevel(logging.DEBUG)
+    elif args.quiet is True:
+        logger.setLevel(logging.WARNING)
+    else:
+        logger.setLevel(logging.INFO)
+
+    # Syslog or stdout log handler
+    if args.syslog is True:
+        handler = SysLogHandler(address='/dev/log')
+        filename = os.path.basename(inspect.getframeinfo(inspect.currentframe()).filename)
+        formatter = logging.Formatter(filename + '[' + str(os.getpid()) + '] | %(levelname)s | %(message)s')
+        handler.setFormatter(formatter)
+    else:
+        handler = logging.StreamHandler(sys.stdout)
+        formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s')
+        handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
+    try:
+        config = EnvironmentManagerConfig(path=args.config_file)
+        config.load()
+        config.merge(
+            git_url=args.git_url,
+            environment_dir=args.environment_dir,
+            master_repo_name=args.master_repo,
+            blacklist=args.blacklist,
+            librarian_puppet_path=args.librarian_puppet_path,
+        )
+
+        manager = EnvironmentManager(
+            noop=args.noop,
+            **config.get_config()
+        )
+
+        # Validate the input and call the appropriate command functions
+        if args.command == 'init':
+            manager.initialise()
+        elif args.command == 'list':
+            if args.available:
+                environments = manager.list_available_environments()
+                print("\n".join(environments))
+            elif args.installed:
+                environments = manager.list_installed_environments()
+                print("\n".join(environments))
+            elif args.missing:
+                environments = manager.list_missing_environments()
+                print("\n".join(environments))
+            elif args.obsolete:
+                environments = manager.list_obsolete_environments()
+                print("\n".join(environments))
+        elif args.command == 'update-all':
+            manager.update_all_environments()
+        elif args.command == 'update':
+            manager.update_single_environment(args.name)
+        elif args.command == 'revision':
+            revision = manager.revision(args.name)
+            if revision is None:
+                sys.exit(1)
+            print(revision)
+        elif args.command == 'cleanup':
+            manager.cleanup_environments()
+        elif args.command == 'config':
+            print(config.as_yaml())
+        else:
+            logger.error("Unrecognised command (this is a bug!)")
+    except MasterRepositoryMissing:
+        logger.error("Aborting simulation, run `init` command in non-noop mode to create the master repository")
+        sys.exit(1)
+    except EnvironmentManagerException as exc:
+        exc_type, exc_obj, exc_traceback = sys.exc_info()
+        logger.error('{0} {1}:{2}: {3}'.format(
+            exc_type.__name__,
+            exc_traceback.tb_frame.f_code.co_filename,
+            exc_traceback.tb_lineno,
+            exc.message))
+        sys.exit(1)
+    except Exception as e:
+        logger.error("Caught unhandled exception: {0} {1}".format(e.__class__.__name__, str(e)))
+        logger.debug(traceback.format_exc())
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()
