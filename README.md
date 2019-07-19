@@ -26,6 +26,10 @@ On Fedora 30+, the following is also needed in `~/.rpmmacros`:
 
 # Changelog
 
+## v0.1.1 - 2019-07-19
+
+* Fix mismatching config directory name between packaging and code
+
 ## v0.1 - 2019-07-19
 
  * First version

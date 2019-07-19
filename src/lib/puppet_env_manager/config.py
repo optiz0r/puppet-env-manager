@@ -72,7 +72,7 @@ class BaseConfig(object):
 
 class EnvironmentManagerConfig(BaseConfig):
 
-    DEFAULT_PATH = '/etc/puppet-environment-manager/config.yaml'
+    DEFAULT_PATH = '/etc/puppet-env-manager/config.yaml'
 
     GIT_URL = None
     ENVIRONMENT_DIR = '/data/puppet/environments'
