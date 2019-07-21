@@ -214,7 +214,9 @@ class EnvironmentManager(object):
         self.logger.info(self._noop("Resetting {0} to {1} ({2}".format(
             environment, upstream_ref.commit.hexsha, upstream_ref.name)))
         if not self.noop:
-            repo.head.reset(upstream_ref)
+            repo.head.reset(upstream_ref, index=True, working_tree=True)
+            if repo.is_dirty():
+                self.logger.warning("After resetting {0}, working tree is dirty!".format(environment))
 
         self.install_puppet_modules(environment)
 
