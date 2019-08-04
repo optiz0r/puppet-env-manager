@@ -28,6 +28,8 @@ On Fedora 30+, the following is also needed in `~/.rpmmacros`:
 
 ## NEXT - TBC
 
+* Don't reset clean environment which is already at the correct commit
+  (unless forced, which can be used to redeploy third party modules)
 * Fix typo in log message
 
 ## v0.1.3 - 2019-07-21

@@ -106,9 +106,15 @@ def parse_args(runtime_args):
 
     # Update-all
     update_all_parser = cmdparser.add_parser('update-all', parents=[common_args])
+    update_all_parser.add_argument(
+        '-f', '--force', dest='force', default=False, action='store_true',
+        help='Force environment to be updated, even if it already appears to be correct')
 
     # Update
     update_parser = cmdparser.add_parser('update', parents=[common_args, named_environment_args])
+    update_parser.add_argument(
+        '-f', '--force', dest='force', default=False, action='store_true',
+        help='Force environment to be updated, even if it already appears to be correct')
 
     # Revision
     revision_parser = cmdparser.add_parser('revision', parents=[common_args, named_environment_args])
@@ -183,9 +189,9 @@ def main():
                 environments = manager.list_obsolete_environments()
                 print("\n".join(environments))
         elif args.command == 'update-all':
-            manager.update_all_environments()
+            manager.update_all_environments(force=args.force)
         elif args.command == 'update':
-            manager.update_single_environment(args.name)
+            manager.update_single_environment(args.name, force=args.force)
         elif args.command == 'revision':
             revision = manager.revision(args.name)
             if revision is None:

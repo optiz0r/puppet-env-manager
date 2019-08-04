@@ -200,10 +200,11 @@ class EnvironmentManager(object):
 
         self.install_puppet_modules(environment)
 
-    def update_environment(self, environment):
+    def update_environment(self, environment, force=False):
         """ Updates an existing environment in the environment directory by name
 
         :param environment: Environment name
+        :param force: Force reset of environment even if it already appears to be up to date
         :return:
         """
         repo = self.environment_repo(environment)
@@ -211,6 +212,11 @@ class EnvironmentManager(object):
             return
 
         upstream_ref = self.master_repo.refs["{0}/{1}".format(self.upstream_remote, environment)]
+        if upstream_ref.commit == repo.head.commit and not repo.is_dirty():
+            self.logger.info("{0} already up to date at {1}".format(environment, upstream_ref.commit.hexsha))
+            if not force:
+                return
+
         self.logger.info(self._noop("Resetting {0} to {1} ({2})".format(
             environment, upstream_ref.commit.hexsha, upstream_ref.name)))
         if not self.noop:
@@ -407,10 +413,11 @@ class EnvironmentManager(object):
 
         return repo.head.commit
 
-    def update_single_environment(self, environment):
+    def update_single_environment(self, environment, force=False):
         """ Updates a single environment by name
 
         :param environment: Environment name
+        :param force: Force reset of environment even if it already appears to be up to date
         :return:
         """
         self.check_master_repo()
@@ -418,11 +425,12 @@ class EnvironmentManager(object):
         if environment not in self.list_installed_environments():
             self.add_environment(environment)
         else:
-            self.update_environment(environment)
+            self.update_environment(environment, force=force)
 
-    def update_all_environments(self):
+    def update_all_environments(self, force=False):
         """ Updates all environments to latest content, and removes obsolete environments
 
+        :param force: Force reset of environment even if it already appears to be up to date
         :return:
         """
         self.check_master_repo()
@@ -436,7 +444,7 @@ class EnvironmentManager(object):
             self.add_environment(environment)
 
         for environment in existing:
-            self.update_environment(environment)
+            self.update_environment(environment, force=force)
 
         self.cleanup_environments(removed)
 
