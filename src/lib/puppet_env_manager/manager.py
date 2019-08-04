@@ -211,7 +211,7 @@ class EnvironmentManager(object):
             return
 
         upstream_ref = self.master_repo.refs["{0}/{1}".format(self.upstream_remote, environment)]
-        self.logger.info(self._noop("Resetting {0} to {1} ({2}".format(
+        self.logger.info(self._noop("Resetting {0} to {1} ({2})".format(
             environment, upstream_ref.commit.hexsha, upstream_ref.name)))
         if not self.noop:
             repo.head.reset(upstream_ref, index=True, working_tree=True)

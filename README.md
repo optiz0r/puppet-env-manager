@@ -26,6 +26,10 @@ On Fedora 30+, the following is also needed in `~/.rpmmacros`:
 
 # Changelog
 
+## NEXT - TBC
+
+* Fix typo in log message
+
 ## v0.1.3 - 2019-07-21
 
 * Fix reset not updating the working tree properly, and add a log entry
