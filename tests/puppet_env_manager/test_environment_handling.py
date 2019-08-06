@@ -1,6 +1,6 @@
 import unittest
 
-from mock import Mock, patch
+from mock import Mock, patch, call
 from subprocess import CalledProcessError
 
 from puppet_env_manager.manager import EnvironmentManager
@@ -24,6 +24,7 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(set(existing), {'three', 'four'})
         self.assertEqual(set(removed), {'five', 'six'})
 
+    # noinspection PyUnresolvedReferences
     @patch('puppet_env_manager.manager.os.symlink')
     @patch('puppet_env_manager.manager.subprocess')
     def test_add_environment(self, mock_subprocess, mock_symlink):
@@ -45,6 +46,7 @@ class TestUtils(unittest.TestCase):
         self.manager.install_puppet_modules.assert_called_once_with('test')
         self.manager.unlock_environment.assert_called_once_with('test')
 
+    # noinspection PyUnresolvedReferences
     @patch('puppet_env_manager.manager.logging')
     @patch('puppet_env_manager.manager.subprocess.check_output')
     def test_add_environment_error(self, mock_subprocess, mock_logger):
@@ -127,7 +129,7 @@ class TestUpdates(unittest.TestCase):
         self.mock_ref.commit.hexsha = '123abc'
         self.manager.upstream_ref = Mock(return_value=self.mock_ref)
 
-
+    # noinspection PyUnresolvedReferences
     @patch('puppet_env_manager.manager.Repo')
     def test_update_environment_in_sync(self, mock_repo):
         self.manager.noop = True
@@ -139,6 +141,7 @@ class TestUpdates(unittest.TestCase):
         self.manager.logger.info.assert_called_once_with('test already up to date at 123abc')
         self.manager.unlock_environment.assert_called_once_with('test')
 
+    # noinspection PyUnresolvedReferences
     @patch('puppet_env_manager.manager.shutil.rmtree')
     @patch('puppet_env_manager.manager.os.rename')
     @patch('puppet_env_manager.manager.os.symlink')
@@ -177,6 +180,7 @@ class TestUpdates(unittest.TestCase):
         mock_rmtree.assert_called_once_with('/etc/puppetlabs/code/test.old')
         self.manager.unlock_environment.assert_called_once_with('test')
 
+    # noinspection PyUnresolvedReferences
     @patch('puppet_env_manager.manager.shutil.rmtree')
     @patch('puppet_env_manager.manager.os.rename')
     @patch('puppet_env_manager.manager.os.symlink')
@@ -214,3 +218,41 @@ class TestUpdates(unittest.TestCase):
         mock_rmtree.assert_called_once_with('/etc/puppetlabs/code/test.dir')
         self.manager.unlock_environment.assert_called_once_with('test')
 
+    @patch('puppet_env_manager.manager.os.path.isdir')
+    @patch('puppet_env_manager.manager.os.path.islink')
+    @patch('puppet_env_manager.manager.os.readlink')
+    @patch('puppet_env_manager.manager.os.listdir')
+    def test_list_stale_environment_clones(self, mock_listdir, mock_readlink, mock_islink, mock_isdir):
+        mock_listdir.return_value = [
+            '.', '..', '.puppet.git', 'production', 'production.clone',
+            'test', 'test.clone', 'test.123abc', 'live_test'
+        ]
+        mock_islink.side_effect = [
+            True, False, True, False, False
+        ]
+        mock_readlink.side_effect = [
+            '/etc/puppetlabs/code/production.clone',
+            '/etc/puppetlabs/code/test.clone',
+        ]
+        mock_isdir.return_value = True
+
+        stale_clones = self.manager.list_stale_environment_clones()
+        self.assertListEqual(stale_clones, ['/etc/puppetlabs/code/test.123abc'])
+
+        mock_listdir.assert_called_once_with('/etc/puppetlabs/code')
+        self.assertEqual(mock_islink.call_count, 5)
+        self.assertEqual(mock_isdir.call_count, 3)
+
+    # noinspection PyUnresolvedReferences
+    @patch('puppet_env_manager.manager.shutil.rmtree')
+    def test_cleanup_stale_environment_clones(self, mock_rmtree):
+        self.manager.list_stale_environment_clones = Mock(return_value=[
+            '/etc/puppetlabs/code/test.123abc', '/etc/puppetlabs/code/test.987fed'])
+
+        self.manager.cleanup_stale_environment_clones()
+        self.manager.lock_environment.assert_has_calls([call('test'), call('test')])
+        mock_rmtree.assert_has_calls([
+            call('/etc/puppetlabs/code/test.123abc'),
+            call('/etc/puppetlabs/code/test.987fed'),
+        ])
+        self.manager.unlock_environment.assert_has_calls([call('test'), call('test')])

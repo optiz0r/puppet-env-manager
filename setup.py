@@ -18,5 +18,11 @@ setup(
     ],
     data_files=[
         ('/etc/puppet-env-manager', []),
-    ], requires=['lockfile']
+    ],
+    install_requires=['lockfile'],
+    extra_requires={
+        'dev': [
+            'mock',
+        ]
+    }
 )

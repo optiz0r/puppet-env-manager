@@ -33,9 +33,12 @@ On Fedora 30+, the following is also needed in `~/.rpmmacros`:
   a partially-updated environment being served out to clients
 * Lock the master repository, and environments while they're being
   modified, to prevent concurrent access issues.
+* Cleanup any stale environment clone directories during update-all,
+  and cleanup modes
 * Don't reset clean environment which is already at the correct commit
   (unless forced, which can be used to redeploy third party modules)
 * Fix typo in log message
+* Add `mock` to dev requirements in `setup.py`
 
 ## v0.1.3 - 2019-07-21
 

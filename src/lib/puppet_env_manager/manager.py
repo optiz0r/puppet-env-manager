@@ -502,6 +502,65 @@ class EnvironmentManager(object):
                 self.existing_environments(installed_set, available_set),
                 self.removed_environments(installed_set, available_set))
 
+    def list_stale_environment_clones(self):
+        """ Lists environment clones left behind on disk and no longer used
+
+        Stale clones could be left behind because of an error during a previous run.
+
+        An environment is defined as stale if it fits the name of a managed environment
+        with a suffix, and is not pointed at by any symlinks
+
+        :return: list(str)
+        """
+        links = {}
+        candidates = []
+        stale_clones = []
+
+        items = os.listdir(self.environment_dir)
+        for item in items:
+            # Ignore hidden files
+            if item.startswith('.'):
+                continue
+
+            # Explicitly ignore the master repo name
+            if item == self.master_repo_name:
+                continue
+
+            # Ignore anything matching the blacklist pattern
+            if self.blacklist.match(item):
+                self.logger.debug("Ignoring blacklisted environment {0}".format(item))
+                continue
+
+            path = os.path.join(self.environment_dir, item)
+            if os.path.islink(path):
+                links[os.readlink(path)] = path
+            elif os.path.isdir(path):
+                candidates.append(path)
+
+        # Look for candidate environments which aren't the target of any symlinks
+        for candidate in candidates:
+            if candidate not in links:
+                self.logger.debug("Stale environment detected: {0}".format(candidate))
+                stale_clones.append(candidate)
+
+        return stale_clones
+
+    def cleanup_stale_environment_clones(self):
+        """ Removes stale environment clones found by list_stale_environment_clones
+        """
+        stale_clones = self.list_stale_environment_clones()
+        for clone_path in stale_clones:
+            # Determine the environment this clone is for
+            environment = re.sub(r'^(?:.*/)?([^./]+)\.[^.]+$', r'\1', clone_path)
+
+            self.lock_environment(environment)
+
+            self.logger.info(self._noop("Removing stale environment clone {0}".format(clone_path)))
+            if not self.noop:
+                shutil.rmtree(clone_path)
+
+            self.unlock_environment(environment)
+
     @staticmethod
     def find_executable(name):
         """ Resolves the given name into a full executable by looking in PATH
@@ -677,6 +736,8 @@ class EnvironmentManager(object):
         - If `removed` is not provided, the set of environments to be removed is calculated by comparing local
           and upstream environments
 
+        Also removes any stale environment clones (which might have been left behind due to an error during deploy)
+
         :param removed: list of environments to be removed, optional
         :return:
         """
@@ -685,3 +746,5 @@ class EnvironmentManager(object):
 
         for environment in removed:
             self.remove_environment(environment)
+
+        self.cleanup_stale_environment_clones()
