@@ -28,6 +28,11 @@ On Fedora 30+, the following is also needed in `~/.rpmmacros`:
 
 ## NEXT - TBC
 
+* Checkout updated environment code into new directories, and manage a
+  symlink pointing at the live copy of the environment. This prevents
+  a partially-updated environment being served out to clients
+* Lock the master repository, and environments while they're being
+  modified, to prevent concurrent access issues.
 * Don't reset clean environment which is already at the correct commit
   (unless forced, which can be used to redeploy third party modules)
 * Fix typo in log message

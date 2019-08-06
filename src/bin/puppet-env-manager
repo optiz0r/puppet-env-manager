@@ -10,7 +10,7 @@ import sys
 from logging.handlers import SysLogHandler
 
 from puppet_env_manager import EnvironmentManager, EnvironmentManagerConfig
-from puppet_env_manager.exceptions import MasterRepositoryMissing, EnvironmentManagerException
+from puppet_env_manager.exceptions import MasterRepositoryMissing, EnvironmentManagerException, InvalidConfiguration
 
 
 def parse_args(runtime_args):
@@ -172,41 +172,57 @@ def main():
             **config.get_config()
         )
 
-        # Validate the input and call the appropriate command functions
-        if args.command == 'init':
-            manager.initialise()
-        elif args.command == 'list':
-            if args.available:
-                environments = manager.list_available_environments()
-                print("\n".join(environments))
-            elif args.installed:
-                environments = manager.list_installed_environments()
-                print("\n".join(environments))
-            elif args.missing:
-                environments = manager.list_missing_environments()
-                print("\n".join(environments))
-            elif args.obsolete:
-                environments = manager.list_obsolete_environments()
-                print("\n".join(environments))
-        elif args.command == 'update-all':
-            manager.update_all_environments(force=args.force)
-        elif args.command == 'update':
-            manager.update_single_environment(args.name, force=args.force)
-        elif args.command == 'revision':
-            revision = manager.revision(args.name)
-            if revision is None:
-                sys.exit(1)
-            print(revision)
-        elif args.command == 'cleanup':
-            manager.cleanup_environments()
-        elif args.command == 'config':
-            print(config.as_yaml())
-        else:
-            logger.error("Unrecognised command (this is a bug!)")
-    except MasterRepositoryMissing:
-        logger.error("Aborting simulation, run `init` command in non-noop mode to create the master repository")
-        sys.exit(1)
-    except EnvironmentManagerException as exc:
+        try:
+
+            # Validate the input and call the appropriate command functions
+            if args.command == 'init':
+                manager.initialise()
+            elif args.command == 'list':
+                if args.available:
+                    environments = manager.list_available_environments()
+                    print("\n".join(environments))
+                elif args.installed:
+                    environments = manager.list_installed_environments()
+                    print("\n".join(environments))
+                elif args.missing:
+                    environments = manager.list_missing_environments()
+                    print("\n".join(environments))
+                elif args.obsolete:
+                    environments = manager.list_obsolete_environments()
+                    print("\n".join(environments))
+            elif args.command == 'update-all':
+                manager.update_all_environments(force=args.force)
+            elif args.command == 'update':
+                manager.update_single_environment(args.name, force=args.force)
+            elif args.command == 'revision':
+                revision = manager.revision(args.name)
+                if revision is None:
+                    sys.exit(1)
+                print(revision)
+            elif args.command == 'cleanup':
+                manager.cleanup_environments()
+            elif args.command == 'config':
+                print(config.as_yaml())
+            else:
+                logger.error("Unrecognised command (this is a bug!)")
+
+        except MasterRepositoryMissing:
+            logger.error("Aborting simulation, run `init` command in non-noop mode to create the master repository")
+            sys.exit(1)
+        except EnvironmentManagerException as exc:
+            exc_type, exc_obj, exc_traceback = sys.exc_info()
+            logger.error('{0} {1}:{2}: {3}'.format(
+                exc_type.__name__,
+                exc_traceback.tb_frame.f_code.co_filename,
+                exc_traceback.tb_lineno,
+                exc.message))
+            manager.unlock_all_paths()
+            sys.exit(1)
+        except Exception:
+            manager.unlock_all_paths()
+            raise
+
+    except InvalidConfiguration as exc:
         exc_type, exc_obj, exc_traceback = sys.exc_info()
         logger.error('{0} {1}:{2}: {3}'.format(
             exc_type.__name__,
