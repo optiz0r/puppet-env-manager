@@ -26,7 +26,7 @@ On Fedora 30+, the following is also needed in `~/.rpmmacros`:
 
 # Changelog
 
-## NEXT - TBC
+## v0.2.0 - 2019-08-06
 
 * Checkout updated environment code into new directories, and manage a
   symlink pointing at the live copy of the environment. This prevents
