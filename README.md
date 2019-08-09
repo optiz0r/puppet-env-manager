@@ -9,6 +9,13 @@ For detailed usage, see:
 puppet-env-manager --help
 ```
 
+# Tests
+
+Run tests:
+```
+make tests
+```
+
 # Packaging
 
 The script ships with a Makefile that can be used to generate a native RPM
@@ -29,6 +36,7 @@ On Fedora 30+, the following is also needed in `~/.rpmmacros`:
 ## NEXT - TBC
 
 * Fix installation of thirdparty modules into clone paths
+* Add makefile target for tests
 
 ## v0.2.0 - 2019-08-06
 

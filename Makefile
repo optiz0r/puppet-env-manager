@@ -40,4 +40,9 @@ clean:
 clobber: clean
 		rm -f *.rpm
 
+# Test targets
+
+test:
+		env PYTHONPATH=./src/lib:tests python -m unittest discover
+
 # vim: set ts=4 shiftwidth=4 noexpandtab:
