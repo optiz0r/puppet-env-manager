@@ -33,7 +33,7 @@ On Fedora 30+, the following is also needed in `~/.rpmmacros`:
 
 # Changelog
 
-## NEXT - TBC
+## v0.2.1 - 2019-08-09
 
 * Fix installation of thirdparty modules into clone paths
 * Add makefile target for tests
