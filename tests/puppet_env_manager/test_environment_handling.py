@@ -43,7 +43,7 @@ class TestUtils(unittest.TestCase):
             '/etc/puppetlabs/code/test.123ABC', 'test'
         ])
         mock_symlink.assert_called_once_with('/etc/puppetlabs/code/test.123ABC', '/etc/puppetlabs/code/test')
-        self.manager.install_puppet_modules.assert_called_once_with('test')
+        self.manager.install_puppet_modules.assert_called_once_with('/etc/puppetlabs/code/test')
         self.manager.unlock_environment.assert_called_once_with('test')
 
     # noinspection PyUnresolvedReferences
@@ -172,7 +172,7 @@ class TestUpdates(unittest.TestCase):
             '/bin/sh', '/bin/git-new-workdir', '/etc/puppetlabs/code/.puppet.git',
             '/etc/puppetlabs/code/test.new', 'test'
         ])
-        self.manager.install_puppet_modules.assert_called_once_with('test')
+        self.manager.install_puppet_modules.assert_called_once_with('/etc/puppetlabs/code/test.new')
         mock_islink.assert_called_once_with('/etc/puppetlabs/code/test')
         mock_readlink.assert_called_once_with('/etc/puppetlabs/code/test')
         mock_symlink.assert_called_once_with('/etc/puppetlabs/code/test.new', '/etc/puppetlabs/code/test.link')
@@ -211,7 +211,7 @@ class TestUpdates(unittest.TestCase):
             '/bin/sh', '/bin/git-new-workdir', '/etc/puppetlabs/code/.puppet.git',
             '/etc/puppetlabs/code/test.new', 'test'
         ])
-        self.manager.install_puppet_modules.assert_called_once_with('test')
+        self.manager.install_puppet_modules.assert_called_once_with('/etc/puppetlabs/code/test.new')
         mock_islink.assert_called_once_with('/etc/puppetlabs/code/test')
         mock_rename.assert_called_once_with('/etc/puppetlabs/code/test', '/etc/puppetlabs/code/test.dir')
         mock_symlink.assert_called_once_with('/etc/puppetlabs/code/test.new', '/etc/puppetlabs/code/test')

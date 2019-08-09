@@ -26,6 +26,10 @@ On Fedora 30+, the following is also needed in `~/.rpmmacros`:
 
 # Changelog
 
+## NEXT - TBC
+
+* Fix installation of thirdparty modules into clone paths
+
 ## v0.2.0 - 2019-08-06
 
 * Checkout updated environment code into new directories, and manage a

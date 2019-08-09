@@ -248,18 +248,18 @@ class EnvironmentManager(object):
             return None
 
         return os.path.join(self.environment_dir, environment)
-    
+
     def generate_unique_environment_path(self, environment):
         """ Returns a unique path for an environment working copy to be located at
-        
+
         This function will generate the path to use for a new directory under the environment dir
         based on the given environment name, but with a unique suffix. This will be the target for an
         environment symlink which can be updated atomically.
-        
+
         :param environment: str Environment name
         :return: str path
         """
-        
+
         while True:
             tmp = ''.join(random.choice(string.hexdigits) for _ in range(6))
             path = os.path.join(self.environment_dir, "{0}.{1}".format(environment, tmp))
@@ -290,15 +290,13 @@ class EnvironmentManager(object):
         in_sync = (upstream_ref.commit == repo.head.commit) and not repo.is_dirty()
         return in_sync
 
-    def install_puppet_modules(self, environment):
+    def install_puppet_modules(self, environment_path):
         """ Installs all puppet modules using librarian-puppet
 
-        :param environment: Environment name
+        :param environment: Path to environment directory in which to install modules
         :return:
         """
-        self.logger.info(self._noop("Installing puppet modules for environment {0}".format(environment)))
-
-        environment_path = os.path.join(self.environment_dir, environment)
+        self.logger.info(self._noop("Installing puppet modules in {0}".format(environment_path)))
 
         cmd = [self.librarian_puppet_path, 'install']
         self.logger.debug(self._noop("Running command: {0}".format(" ".join(cmd))))
@@ -307,8 +305,8 @@ class EnvironmentManager(object):
                 output = subprocess.check_output(cmd, cwd=environment_path)
                 self.logger.debug(output)
             except subprocess.CalledProcessError as e:
-                self.logger.error("Failed to install puppet modules into environment {0}, exited {1}: {2}".format(
-                    environment, e.returncode, e.output))
+                self.logger.error("Failed to install puppet modules into {0}, exited {1}: {2}".format(
+                    environment_path, e.returncode, e.output))
 
                 return
 
@@ -347,7 +345,7 @@ class EnvironmentManager(object):
 
                 return
 
-        self.install_puppet_modules(environment)
+        self.install_puppet_modules(environment_path)
 
         self.unlock_environment(environment)
 
@@ -392,7 +390,7 @@ class EnvironmentManager(object):
                 self.logger.error("Failed to add environment {0}, exited {1}: {2}".format(
                     environment, e.returncode, e.output))
 
-        self.install_puppet_modules(environment)
+        self.install_puppet_modules(clone_path)
 
         if os.path.islink(repo_path):
             old_clone = os.readlink(repo_path)
