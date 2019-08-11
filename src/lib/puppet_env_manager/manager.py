@@ -48,6 +48,9 @@ class EnvironmentManager(object):
         self.master_repo_path = os.path.join(self.environment_dir, self.master_repo_name)
         self._master_repo = None
 
+        # If running in noop mode, track branches which would have been deleted
+        self._pruned_environments = []
+
         self.librarian_puppet_path = self.find_executable(librarian_puppet_path)
         self.new_workdir_path = self.find_workdir()
 
@@ -123,14 +126,30 @@ class EnvironmentManager(object):
         """
         self.lock_path(self.master_repo_path)
 
+        remote = self.master_repo.remote(self.upstream_remote)
         self.logger.debug(self._noop("Fetching changes from {0}".format(self.upstream_remote)))
         if not self.noop:
-            remote = self.master_repo.remote(self.upstream_remote)
             fetch_info = remote.fetch()
             for fetch in fetch_info:
                 self.logger.debug("Updated {0} to {1}".format(fetch.ref, fetch.commit))
 
+        self.prune_stale_refs(remote)
+
         self.unlock_path(self.master_repo_path)
+
+    def prune_stale_refs(self, remote):
+        """ Removes stale references for the given remote
+
+        Not thread-safe, should be called for an already-locked repository.
+
+        :param remote: git.Remote Remote object to prune objects for
+        """
+        for ref in remote.stale_refs:
+            self.logger.info(self._noop("Removing stale ref {0}".format(ref)))
+            if not self.noop:
+                ref.delete(self.master_repo, ref)
+
+            self._pruned_environments.append(ref.remote_head)
 
     def validate_environment_name(self, environment):
         """ Returns true if the given environment name is valid for use with puppet
@@ -293,7 +312,7 @@ class EnvironmentManager(object):
     def install_puppet_modules(self, environment_path):
         """ Installs all puppet modules using librarian-puppet
 
-        :param environment: Path to environment directory in which to install modules
+        :param environment_path: Path to environment directory in which to install modules
         :return:
         """
         self.logger.info(self._noop("Installing puppet modules in {0}".format(environment_path)))
@@ -394,6 +413,8 @@ class EnvironmentManager(object):
 
         if os.path.islink(repo_path):
             old_clone = os.readlink(repo_path)
+            if not os.path.isabs(old_clone):
+                old_clone = os.path.normpath(os.path.join(self.environment_dir, old_clone))
             temp_link = self.generate_unique_environment_path(environment)
 
             if not self.noop:
@@ -446,6 +467,8 @@ class EnvironmentManager(object):
         if os.path.islink(repo_path):
             # Find what the link points at
             target_path = os.readlink(repo_path)
+            if not os.path.isabs(target_path):
+                target_path = os.path.normpath(os.path.join(self.environment_dir, target_path))
 
             self.logger.debug(self._noop("Removing symlink {0} and target {1}".format(repo_path, target_path)))
 
@@ -467,27 +490,30 @@ class EnvironmentManager(object):
         added = list(available_set - installed_set)
         return added
 
-    @staticmethod
-    def existing_environments(installed_set, available_set):
+    def existing_environments(self, installed_set, available_set):
         """ Returns the set of environments present both upstream and on disk
+
+        Also takes into account the list of would-be-deleted branches when running in noop mode
 
         :param available_set: set of environment names that exist upstream
         :param installed_set: set of environment names that exist on disk
         :return: set of environment names
         """
-        existing = list(available_set.intersection(installed_set))
+        existing = list(available_set.intersection(installed_set) - set(self._pruned_environments))
         return existing
 
-    @staticmethod
-    def removed_environments(installed_set, available_set):
+    def removed_environments(self, installed_set, available_set):
         """ Returns the set of environments present on local disk but missing upstream
+
+        Also takes into account the list of would-be-deleted branches when running in noop mode
 
         :param available_set: set of environment names that exist upstream
         :param installed_set: set of environment names that exist on disk
         :return: set of environment names
         """
         removed = list(installed_set - available_set)
-        return removed
+        removed_set = set(removed + self._pruned_environments)
+        return list(removed_set)
 
     def calculate_environment_changes(self, installed_set, available_set):
         """ Given two lists of installed and available environments, generates the subset of new, common and removed

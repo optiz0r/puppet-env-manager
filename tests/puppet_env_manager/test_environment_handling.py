@@ -1,6 +1,6 @@
 import unittest
 
-from mock import Mock, patch, call
+from mock import Mock, patch, call, PropertyMock
 from subprocess import CalledProcessError
 
 from puppet_env_manager.manager import EnvironmentManager
@@ -9,6 +9,19 @@ from puppet_env_manager.manager import EnvironmentManager
 class TestUtils(unittest.TestCase):
     def setUp(self):
         self.manager = EnvironmentManager(environment_dir='/etc/puppetlabs/code', validate=False)
+
+    def test_prune_stale_refs(self):
+        self.manager._master_repo = Mock()
+        stale_ref = Mock()
+        stale_ref.name = 'origin/test'
+        stale_ref.remote_head = 'test'
+        remote = Mock()
+        type(remote).stale_refs = PropertyMock(return_value=[stale_ref])
+
+        self.manager.prune_stale_refs(remote)
+
+        stale_ref.delete.assert_called_once_with(self.manager._master_repo, stale_ref)
+        self.assertListEqual(self.manager._pruned_environments, ['test'])
 
     def test_calculate_environment_changes(self):
         """ Verifies the subsets of added, existing, and removed environments is calculated correctly
@@ -23,6 +36,21 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(set(added), {'one', 'two'})
         self.assertEqual(set(existing), {'three', 'four'})
         self.assertEqual(set(removed), {'five', 'six'})
+
+    def test_calculate_environment_changes_with_pruned(self):
+        """ Verifies the subsets of added, existing, and removed environments is calculated correctly
+        """
+        available = ('one', 'two', 'three')
+        self.manager._pruned_environments = ['four']
+        installed = ('three', 'four', 'five', 'six')
+
+        added, existing, removed = self.manager.calculate_environment_changes(
+            installed_set=set(installed),
+            available_set=set(available))
+
+        self.assertEqual(set(added), {'one', 'two'})
+        self.assertEqual(set(existing), {'three'})
+        self.assertEqual(set(removed), {'four', 'five', 'six'})
 
     # noinspection PyUnresolvedReferences
     @patch('puppet_env_manager.manager.os.symlink')
@@ -88,6 +116,19 @@ class TestUtils(unittest.TestCase):
     def test_remove_environment_link(self, mock_islink, mock_readlink, mock_unlink, mock_rmtree):
         mock_islink.return_value = True
         mock_readlink.return_value = '/etc/puppetlabs/code/test.123ABC'
+
+        self.manager.remove_environment('test')
+
+        mock_unlink.assert_called_once_with('/etc/puppetlabs/code/test')
+        mock_rmtree.assert_called_once_with('/etc/puppetlabs/code/test.123ABC')
+
+    @patch('puppet_env_manager.manager.shutil.rmtree')
+    @patch('puppet_env_manager.manager.os.unlink')
+    @patch('puppet_env_manager.manager.os.readlink')
+    @patch('puppet_env_manager.manager.os.path.islink')
+    def test_remove_environment_relative_link(self, mock_islink, mock_readlink, mock_unlink, mock_rmtree):
+        mock_islink.return_value = True
+        mock_readlink.return_value = 'test.123ABC'
 
         self.manager.remove_environment('test')
 
