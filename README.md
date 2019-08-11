@@ -33,7 +33,7 @@ On Fedora 30+, the following is also needed in `~/.rpmmacros`:
 
 # Changelog
 
-## NEXT - TBC
+## v.0.2.2 - 2019-09-11
 
 * Prune remote branches when fetching changes
 * Fix deletion of environments for pruned remote branches
