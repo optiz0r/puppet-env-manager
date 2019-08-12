@@ -33,7 +33,7 @@ On Fedora 30+, the following is also needed in `~/.rpmmacros`:
 
 # Changelog
 
-## NEXT - TBC
+## v0.2.3 - 2019-08-12
 
 * Fixup compatibility with py2.6 for el6
   (tests won't run under py2.6)
