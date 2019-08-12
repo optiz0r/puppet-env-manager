@@ -1,7 +1,7 @@
+import subprocess
 import unittest
 
 from mock import Mock, patch, call, PropertyMock
-from subprocess import CalledProcessError
 
 from puppet_env_manager.manager import EnvironmentManager
 
@@ -54,8 +54,11 @@ class TestUtils(unittest.TestCase):
 
     # noinspection PyUnresolvedReferences
     @patch('puppet_env_manager.manager.os.symlink')
-    @patch('puppet_env_manager.manager.subprocess')
+    @patch('puppet_env_manager.manager.subprocess.Popen')
     def test_add_environment(self, mock_subprocess, mock_symlink):
+        mock_subprocess.return_value = mock_subprocess
+        mock_subprocess.communicate.return_value = ('', '')
+        mock_subprocess.poll.return_value = 0
         self.manager.new_workdir_path = '/bin/git-new-workdir'
         self.manager.generate_unique_environment_path = Mock()
         self.manager.generate_unique_environment_path.return_value = '/etc/puppetlabs/code/test.123ABC'
@@ -66,25 +69,27 @@ class TestUtils(unittest.TestCase):
         self.manager.add_environment('test')
 
         self.manager.lock_environment.assert_called_once_with('test')
-        mock_subprocess.check_output.assert_called_once_with([
+        mock_subprocess.assert_called_once_with([
             '/bin/sh', '/bin/git-new-workdir', '/etc/puppetlabs/code/.puppet.git',
             '/etc/puppetlabs/code/test.123ABC', 'test'
-        ])
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         mock_symlink.assert_called_once_with('/etc/puppetlabs/code/test.123ABC', '/etc/puppetlabs/code/test')
         self.manager.install_puppet_modules.assert_called_once_with('/etc/puppetlabs/code/test')
         self.manager.unlock_environment.assert_called_once_with('test')
 
     # noinspection PyUnresolvedReferences
     @patch('puppet_env_manager.manager.logging')
-    @patch('puppet_env_manager.manager.subprocess.check_output')
+    @patch('puppet_env_manager.manager.subprocess.Popen')
     def test_add_environment_error(self, mock_subprocess, mock_logger):
+        mock_subprocess.return_value = mock_subprocess
+        mock_subprocess.communicate.return_value = ('some output', 'some error')
+        mock_subprocess.poll.return_value = 1
         self.manager.logger = mock_logger
         self.manager.generate_unique_environment_path = Mock()
         self.manager.generate_unique_environment_path.return_value = '/etc/puppetlabs/code/test.123ABC'
         self.manager.install_puppet_modules = Mock()
         self.manager.lock_environment = Mock()
         self.manager.unlock_environment = Mock()
-        mock_subprocess.side_effect = CalledProcessError(1, 'some command', 'some output')
 
         self.manager.new_workdir_path = '/bin/git-new-workdir'
         self.manager.add_environment('test')
@@ -93,9 +98,9 @@ class TestUtils(unittest.TestCase):
         mock_subprocess.assert_called_once_with([
             '/bin/sh', '/bin/git-new-workdir', '/etc/puppetlabs/code/.puppet.git',
             '/etc/puppetlabs/code/test.123ABC', 'test'
-        ])
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         mock_logger.error.assert_called_with(
-            "Failed to add environment test, exited 1: some output"
+            "Failed to add environment test, exited 1: some output, some error"
         )
         self.assertEqual(self.manager.install_puppet_modules.call_count, 0, 'install_puppet_modules should not have been called')
         self.manager.unlock_environment.assert_called_once_with('test')
@@ -188,11 +193,14 @@ class TestUpdates(unittest.TestCase):
     @patch('puppet_env_manager.manager.os.symlink')
     @patch('puppet_env_manager.manager.os.readlink')
     @patch('puppet_env_manager.manager.os.path.islink')
-    @patch('puppet_env_manager.manager.subprocess.check_output')
+    @patch('puppet_env_manager.manager.subprocess.Popen')
     @patch('puppet_env_manager.manager.Repo')
     def test_update_environment_link(
             self, mock_repo, mock_subprocess, mock_islink, mock_readlink,
             mock_symlink, mock_rename, mock_rmtree):
+        mock_subprocess.return_value = mock_subprocess
+        mock_subprocess.communicate.return_value = ('', '')
+        mock_subprocess.poll.return_value = 0
         mock_repo.return_value = mock_repo
         mock_islink.return_value = True
         mock_readlink.return_value = '/etc/puppetlabs/code/test.old'
@@ -212,7 +220,9 @@ class TestUpdates(unittest.TestCase):
         mock_subprocess.assert_called_once_with([
             '/bin/sh', '/bin/git-new-workdir', '/etc/puppetlabs/code/.puppet.git',
             '/etc/puppetlabs/code/test.new', 'test'
-        ])
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        mock_subprocess.communicate.assert_called_once_with()
+        mock_subprocess.poll.assert_called_once_with()
         self.manager.install_puppet_modules.assert_called_once_with('/etc/puppetlabs/code/test.new')
         mock_islink.assert_called_once_with('/etc/puppetlabs/code/test')
         mock_readlink.assert_called_once_with('/etc/puppetlabs/code/test')
@@ -227,11 +237,14 @@ class TestUpdates(unittest.TestCase):
     @patch('puppet_env_manager.manager.os.symlink')
     @patch('puppet_env_manager.manager.os.readlink')
     @patch('puppet_env_manager.manager.os.path.islink')
-    @patch('puppet_env_manager.manager.subprocess.check_output')
+    @patch('puppet_env_manager.manager.subprocess.Popen')
     @patch('puppet_env_manager.manager.Repo')
     def test_update_environment_dir(
             self, mock_repo, mock_subprocess, mock_islink, mock_readlink,
             mock_symlink, mock_rename, mock_rmtree):
+        mock_subprocess.return_value = mock_subprocess
+        mock_subprocess.communicate.return_value = ('', '')
+        mock_subprocess.poll.return_value = 0
         mock_repo.return_value = mock_repo
         mock_islink.return_value = False
         mock_readlink.return_value = '/etc/puppetlabs/code/test.old'
@@ -251,7 +264,7 @@ class TestUpdates(unittest.TestCase):
         mock_subprocess.assert_called_once_with([
             '/bin/sh', '/bin/git-new-workdir', '/etc/puppetlabs/code/.puppet.git',
             '/etc/puppetlabs/code/test.new', 'test'
-        ])
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self.manager.install_puppet_modules.assert_called_once_with('/etc/puppetlabs/code/test.new')
         mock_islink.assert_called_once_with('/etc/puppetlabs/code/test')
         mock_rename.assert_called_once_with('/etc/puppetlabs/code/test', '/etc/puppetlabs/code/test.dir')

@@ -9,8 +9,12 @@ import subprocess
 from distutils.spawn import find_executable
 from git import Repo
 from git.cmd import Git
-# noinspection PyProtectedMember
-from lockfile import LockFile
+try:
+    # noinspection PyProtectedMember
+    from lockfile import LockFile
+except ImportError:
+    # python 2.6 compatibility
+    from lockfile import FileLock as LockFile
 
 from .config import EnvironmentManagerConfig
 from .exceptions import MasterRepositoryMissing, InvalidConfiguration
@@ -320,13 +324,13 @@ class EnvironmentManager(object):
         cmd = [self.librarian_puppet_path, 'install']
         self.logger.debug(self._noop("Running command: {0}".format(" ".join(cmd))))
         if not self.noop:
-            try:
-                output = subprocess.check_output(cmd, cwd=environment_path)
-                self.logger.debug(output)
-            except subprocess.CalledProcessError as e:
-                self.logger.error("Failed to install puppet modules into {0}, exited {1}: {2}".format(
-                    environment_path, e.returncode, e.output))
-
+            process = subprocess.Popen(cmd, cwd=environment_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            output, stderr = process.communicate()
+            retcode = process.poll()
+            self.logger.debug(output)
+            if retcode != 0:
+                self.logger.error("Failed to install puppet modules into {0}, exited {1}: {2}, {3}".format(
+                    environment_path, retcode, output, stderr))
                 return
 
     def add_environment(self, environment):
@@ -350,19 +354,20 @@ class EnvironmentManager(object):
         cmd = ['/bin/sh', self.new_workdir_path, self.master_repo_path, clone_path, environment]
         self.logger.debug(self._noop("Running command: {0}".format(" ".join(cmd))))
         if not self.noop:
-            try:
-                output = subprocess.check_output(cmd)
-                self.logger.debug(output)
-
-                os.symlink(clone_path, environment_path)
-                self.logger.debug("Linked {0} to {1}".format(environment_path, clone_path))
-            except subprocess.CalledProcessError as e:
-                self.logger.error("Failed to add environment {0}, exited {1}: {2}".format(
-                    environment, e.returncode, e.output))
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            output, stderr = process.communicate()
+            retcode = process.poll()
+            self.logger.debug(output)
+            if retcode != 0:
+                self.logger.error("Failed to add environment {0}, exited {1}: {2}, {3}".format(
+                    environment, retcode, output, stderr))
 
                 self.unlock_environment(environment)
 
                 return
+
+            os.symlink(clone_path, environment_path)
+            self.logger.debug("Linked {0} to {1}".format(environment_path, clone_path))
 
         self.install_puppet_modules(environment_path)
 
@@ -402,12 +407,14 @@ class EnvironmentManager(object):
         cmd = ['/bin/sh', self.new_workdir_path, self.master_repo_path, clone_path, environment]
         self.logger.debug(self._noop("Running command: {0}".format(" ".join(cmd))))
         if not self.noop:
-            try:
-                output = subprocess.check_output(cmd)
-                self.logger.debug(output)
-            except subprocess.CalledProcessError as e:
-                self.logger.error("Failed to add environment {0}, exited {1}: {2}".format(
-                    environment, e.returncode, e.output))
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            output, stderr = process.communicate()
+            retcode = process.poll()
+            self.logger.debug(output)
+            if retcode != 0:
+                self.logger.error("Failed to add environment {0}, exited {1}: {2}, {3}".format(
+                    environment, retcode, output, stderr))
+                return
 
         self.install_puppet_modules(clone_path)
 

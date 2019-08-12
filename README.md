@@ -33,7 +33,12 @@ On Fedora 30+, the following is also needed in `~/.rpmmacros`:
 
 # Changelog
 
-## v.0.2.2 - 2019-09-11
+## NEXT - TBC
+
+* Fixup compatibility with py2.6 for el6
+  (tests won't run under py2.6)
+
+## v0.2.2 - 2019-09-11
 
 * Prune remote branches when fetching changes
 * Fix deletion of environments for pruned remote branches
