@@ -33,7 +33,7 @@ On Fedora 30+, the following is also needed in `~/.rpmmacros`:
 
 # Changelog
 
-## NEXT - TBC
+## v0.3.0 - 2019-08-19
 
 * Generate resource type cache after making code changes
 * Update generated clone path names to use `__` as a separator so
