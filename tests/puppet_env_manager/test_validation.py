@@ -6,7 +6,7 @@ from puppet_env_manager.exceptions import InvalidConfiguration
 from puppet_env_manager.manager import EnvironmentManager
 
 
-class TestUtils(unittest.TestCase):
+class TestValidation(unittest.TestCase):
     def setUp(self):
         self.manager = EnvironmentManager(
             git_url='https://example.com/puppet.git',

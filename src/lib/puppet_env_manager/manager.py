@@ -158,10 +158,19 @@ class EnvironmentManager(object):
     def validate_environment_name(self, environment):
         """ Returns true if the given environment name is valid for use with puppet
 
+        - Puppet requires alphanumeric and underscores
+        - We disallow double underscore
+        - We disallow any blacklisted names
+
         :param environment: Environment name
         :return:
         """
         if not self.ENVIRONMENT_NAME_PATTERN.match(environment):
+            return False
+
+        # We use double underscore to differentiate unique clone paths, do don't
+        # allow them in user names
+        if '__' in environment:
             return False
 
         if self.blacklist.match(environment):
@@ -285,10 +294,19 @@ class EnvironmentManager(object):
 
         while True:
             tmp = ''.join(random.choice(string.hexdigits) for _ in range(6))
-            path = os.path.join(self.environment_dir, "{0}.{1}".format(environment, tmp))
+            path = os.path.join(self.environment_dir, "{0}__{1}".format(environment, tmp))
 
             if not os.path.exists(path):
                 return path
+
+    @staticmethod
+    def identify_environment_name_from_path(environment_path):
+        """ Returns the environment/clone name from the given path
+
+        :param environment_path: str Path of the environment or clone
+        :return: str Environment name
+        """
+        return os.path.basename(environment_path.rstrip(os.path.sep))
 
     def upstream_ref(self, environment):
         """ Returns the upstream ref for the given environment from the master repo
@@ -333,6 +351,31 @@ class EnvironmentManager(object):
                     environment_path, retcode, output, stderr))
                 return
 
+    def generate_resource_type_cache(self, environment_path, force=False):
+        """ Runs "puppet generate types" to help maintain environment isolation for rubv types
+
+        :param environment_path: str Path  to environment directory in which to generate cache
+        :param force: bool Whether to enable the --force flag to regenerate all metadata
+        :return:
+        """
+        self.logger.info(self._noop("Regenerating resource type cache in {0}".format(environment_path)))
+
+        environment_name = self.identify_environment_name_from_path(environment_path)
+
+        cmd = ['puppet', 'generate', 'types', '--environmentpath', self.environment_dir, '--environment', environment_name]
+        if force:
+            cmd += ['--force']
+        self.logger.debug(self._noop("Running command: {0}".format(" ".join(cmd))))
+        if not self.noop:
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            output, stderr = process.communicate()
+            retcode = process.poll()
+            self.logger.debug(output)
+            if retcode != 0:
+                self.logger.error("Failed to generate resource type cache for {0}, exited {1}: {2}, {3}".format(
+                    environment_name, retcode, output, stderr))
+                return
+
     def add_environment(self, environment):
         """ Checks out a new environment into the environment directory by name
 
@@ -370,6 +413,7 @@ class EnvironmentManager(object):
             self.logger.debug("Linked {0} to {1}".format(environment_path, clone_path))
 
         self.install_puppet_modules(environment_path)
+        self.generate_resource_type_cache(environment_path)
 
         self.unlock_environment(environment)
 
@@ -417,6 +461,7 @@ class EnvironmentManager(object):
                 return
 
         self.install_puppet_modules(clone_path)
+        self.generate_resource_type_cache(clone_path, force=force)
 
         if os.path.islink(repo_path):
             old_clone = os.readlink(repo_path)
@@ -582,7 +627,7 @@ class EnvironmentManager(object):
         stale_clones = self.list_stale_environment_clones()
         for clone_path in stale_clones:
             # Determine the environment this clone is for
-            environment = re.sub(r'^(?:.*/)?([^./]+)\.[^.]+$', r'\1', clone_path)
+            environment = re.sub(r'^(?:.*/)?([^./]+)__[^.]+$', r'\1', clone_path)
 
             self.lock_environment(environment)
 

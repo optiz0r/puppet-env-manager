@@ -33,6 +33,15 @@ On Fedora 30+, the following is also needed in `~/.rpmmacros`:
 
 # Changelog
 
+## NEXT - TBC
+
+* Generate resource type cache after making code changes
+* Update generated clone path names to use `__` as a separator so
+  they're considered valid environment names. Required for atomic
+  resource type cache generation.
+* Prevent branches with `__` in the name from being treated as
+  environments
+
 ## v0.2.3 - 2019-08-12
 
 * Fixup compatibility with py2.6 for el6
