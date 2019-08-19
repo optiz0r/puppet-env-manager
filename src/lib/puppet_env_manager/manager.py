@@ -721,8 +721,8 @@ class EnvironmentManager(object):
             if item == self.master_repo_name:
                 continue
 
-            # Ignore anything with dots (lock files, temporary clones)
-            if '.' in item:
+            # Ignore anything with reserved characters (lock files, temporary clones)
+            if '.' in item or '__' in item:
                 continue
 
             # Ignore anything matching the blacklist pattern

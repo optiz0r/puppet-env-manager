@@ -23,6 +23,16 @@ class TestEnvironmentHandling(unittest.TestCase):
         stale_ref.delete.assert_called_once_with(self.manager._master_repo, stale_ref)
         self.assertListEqual(self.manager._pruned_environments, ['test'])
 
+    @patch('puppet_env_manager.manager.os.listdir')
+    def test_list_installed_environments(self, mock_listdir):
+        mock_listdir.return_value = [
+            '.', '..', '.puppet.git', '.production.lock', 'production', 'production__clone', 'test'
+        ]
+        expected = ['production', 'test']
+
+        installed = self.manager.list_installed_environments()
+        self.assertListEqual(expected, installed)
+
     def test_calculate_environment_changes(self):
         """ Verifies the subsets of added, existing, and removed environments is calculated correctly
         """

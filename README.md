@@ -33,6 +33,11 @@ On Fedora 30+, the following is also needed in `~/.rpmmacros`:
 
 # Changelog
 
+## NEXT - TBC
+
+* Ignore `__` paths as clones and don't try to delete them during
+  cleanup. Add test for this behaviour.
+
 ## v0.3.0 - 2019-08-19
 
 * Generate resource type cache after making code changes
