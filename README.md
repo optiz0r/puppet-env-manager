@@ -33,7 +33,7 @@ On Fedora 30+, the following is also needed in `~/.rpmmacros`:
 
 # Changelog
 
-## NEXT - TBC
+## v0.3.1 - 2019-08-19
 
 * Ignore `__` paths as clones and don't try to delete them during
   cleanup. Add test for this behaviour.
