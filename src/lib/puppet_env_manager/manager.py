@@ -460,6 +460,17 @@ class EnvironmentManager(object):
                     environment, retcode, output, stderr))
                 return
 
+        # Copy the modules before checking for changes, since this is quicker than retrieving
+        # them from the original source
+        for module in os.listdir(os.path.join(repo_path, 'thirdparty')):
+            if module.startswith('.'):
+                continue
+            shutil.copytree(
+                os.path.join(repo_path, 'thirdparty', module),
+                os.path.join(clone_path, 'thirdparty', module),
+                symlinks=True
+            )
+
         self.install_puppet_modules(clone_path)
         self.generate_resource_type_cache(clone_path, force=force)
 
