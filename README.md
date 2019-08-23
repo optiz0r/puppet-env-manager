@@ -38,7 +38,7 @@ make publish
 
 # Changelog
 
-## NEXT - 2019-08-23
+## v0.4.1 - 2019-08-23
 
 * Ignore locked environments during stale cleanup
   to avoid deleting a new clone being created by
