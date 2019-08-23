@@ -73,6 +73,36 @@ def parse_args(runtime_args):
              '(config: librarian_puppet_path) '
              '(default: {0})'.format(EnvironmentManagerConfig.LIBRARIAN_PUPPET_PATH)
     )
+    manager_args.add_argument(
+        '--cert', dest='puppet_cert_file',
+        help='Path to puppet TLS certificate '
+             '(config: puppet_cert_file) '
+             '(default: {0})'.format(EnvironmentManagerConfig.PUPPET_CERT_FILE)
+    )
+    manager_args.add_argument(
+        '--key', dest='puppet_key_file',
+        help='Path to puppet TLS key '
+             '(config: puppet_key_file) '
+             '(default: {0})'.format(EnvironmentManagerConfig.PUPPET_KEY_FILE)
+    )
+    manager_args.add_argument(
+        '--ca', dest='puppet_ca_file',
+        help='Path to puppet CA certificate '
+             '(config: puppet_cert_file) '
+             '(default: {0})'.format(EnvironmentManagerConfig.PUPPET_CA_FILE)
+    )
+    manager_args.add_argument(
+        '--puppet-server', dest='puppet_server',
+        help='Puppet Server hostname on which to trigger an environment cache flush '
+             '(config: puppet_server) '
+             '(default: {0})'.format(EnvironmentManagerConfig.PUPPET_SERVER)
+    )
+    manager_args.add_argument(
+        '--no-flush-environment-cache', dest='flush_environment_cache', action='store_false',
+        help='Flush the environment cache '
+             '(config: flush_environment_cache) '
+             '(default: {0})'.format(EnvironmentManagerConfig.FLUSH_ENVIRONMENT_CACHE)
+    )
 
     # Environment name is present on multiple commands
     named_environment_args = argparse.ArgumentParser("Environment Details", add_help=False)
@@ -165,6 +195,11 @@ def main():
             master_repo_name=args.master_repo,
             blacklist=args.blacklist,
             librarian_puppet_path=args.librarian_puppet_path,
+            puppet_cert_file=args.puppet_cert_file,
+            puppet_key_file=args.puppet_key_file,
+            puppet_ca_file=args.puppet_ca_file,
+            puppet_server=args.puppet_server,
+            flush_environment_cache=args.flush_environment_cache,
         )
 
         manager = EnvironmentManager(

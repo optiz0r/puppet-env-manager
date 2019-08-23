@@ -3,10 +3,13 @@ import os
 import random
 import re
 import shutil
+import socket
 import string
 import subprocess
 
 from distutils.spawn import find_executable
+
+import requests
 from git import Repo
 from git.cmd import Git
 try:
@@ -14,6 +17,7 @@ try:
     from lockfile import LockFile
 except ImportError:
     # python 2.6 compatibility
+    # noinspection PyProtectedMember
     from lockfile import FileLock as LockFile
 
 from .config import EnvironmentManagerConfig
@@ -33,6 +37,11 @@ class EnvironmentManager(object):
             blacklist=EnvironmentManagerConfig.ENVIRONMENT_NAME_BLACKLIST,
             upstream_remote=EnvironmentManagerConfig.UPSTREAM_REMOTE,
             librarian_puppet_path=EnvironmentManagerConfig.LIBRARIAN_PUPPET_PATH,
+            puppet_cert_file=EnvironmentManagerConfig.PUPPET_CERT_FILE,
+            puppet_key_file=EnvironmentManagerConfig.PUPPET_KEY_FILE,
+            puppet_ca_file=EnvironmentManagerConfig.PUPPET_CA_FILE,
+            puppet_server=EnvironmentManagerConfig.PUPPET_SERVER,
+            flush_environment_cache=EnvironmentManagerConfig.FLUSH_ENVIRONMENT_CACHE,
             noop=False,
             validate=True):
 
@@ -42,6 +51,11 @@ class EnvironmentManager(object):
         self.environment_dir = environment_dir
         self.master_repo_name = master_repo_name
         self.upstream_remote = upstream_remote
+        self.puppet_cert_file = puppet_cert_file
+        self.puppet_key_file = puppet_key_file
+        self.puppet_ca_file = puppet_ca_file
+        self.puppet_server = puppet_server
+        self.flush_environment_cache = flush_environment_cache
         self.noop = noop
 
         self.blacklist = blacklist
@@ -352,7 +366,7 @@ class EnvironmentManager(object):
                 return
 
     def generate_resource_type_cache(self, environment_path, force=False):
-        """ Runs "puppet generate types" to help maintain environment isolation for rubv types
+        """ Runs "puppet generate types" to help maintain environment isolation for ruby types
 
         :param environment_path: str Path  to environment directory in which to generate cache
         :param force: bool Whether to enable the --force flag to regenerate all metadata
@@ -362,7 +376,8 @@ class EnvironmentManager(object):
 
         environment_name = self.identify_environment_name_from_path(environment_path)
 
-        cmd = ['puppet', 'generate', 'types', '--environmentpath', self.environment_dir, '--environment', environment_name]
+        cmd = [
+            'puppet', 'generate', 'types', '--environmentpath', self.environment_dir, '--environment', environment_name]
         if force:
             cmd += ['--force']
         self.logger.debug(self._noop("Running command: {0}".format(" ".join(cmd))))
@@ -376,10 +391,45 @@ class EnvironmentManager(object):
                     environment_name, retcode, output, stderr))
                 return
 
-    def add_environment(self, environment):
+    def flush_environment_caches(self, environment=None):
+        """ Requests the puppet server flush the environment cache for the given environment, or all environments
+
+        :param environment: str|None Environment name to be flushed, or None for all environments
+        :return:
+        """
+        if not self.flush_environment_cache:
+            self.logger.debug("Skipping environment flush")
+            return
+
+        if environment:
+            self.logger.info(self._noop("Requesting Puppet Server flush environment cache for {0}".format(environment)))
+        else:
+            self.logger.info(self._noop("Requesting Puppet Server flush environment cache for all environments"))
+
+        url = 'https://{0}:8140/puppet-admin-api/v1/environment-cache'.format(self.puppet_server)
+        params = {}
+        if environment:
+            params['environment'] = environment
+
+        if not self.noop:
+            try:
+                result = requests.delete(
+                    url, params=params, cert=(self.puppet_cert_file, self.puppet_key_file), verify=self.puppet_ca_file)
+
+                if result.status_code == 204:
+                    self.logger.info("Environment cache flushed OK")
+                else:
+                    self.logger.warning("Failed to flush environment cache with error {0}: {1}".format(
+                        result.status_code, result.text
+                    ))
+            except IOError as e:
+                self.logger.warning("Failed to flush environment cache with error: {0}".format(str(e)))
+
+    def add_environment(self, environment, flush=True):
         """ Checks out a new environment into the environment directory by name
 
-        :param environment: Environment name
+        :param environment: str Environment name
+        :param flush: bool Flush environment caches
         :return:
         """
         # Safety first
@@ -415,13 +465,17 @@ class EnvironmentManager(object):
         self.install_puppet_modules(environment_path)
         self.generate_resource_type_cache(environment_path)
 
+        if flush:
+            self.flush_environment_caches()
+
         self.unlock_environment(environment)
 
-    def update_environment(self, environment, force=False):
+    def update_environment(self, environment, force=False, flush=True):
         """ Updates an existing environment in the environment directory by name
 
-        :param environment: Environment name
-        :param force: Force reset of environment even if it already appears to be up to date
+        :param environment: str Environment name
+        :param force: bool Force reset of environment even if it already appears to be up to date
+        :param flush: bool Flush environment caches
         :return:
         """
         repo_path = self.environment_repo_path(environment)
@@ -513,12 +567,16 @@ class EnvironmentManager(object):
 
             self.logger.debug("Replaced {0} directory with symlink to {1}".format(environment, clone_path))
 
+        if flush:
+            self.flush_environment_caches()
+
         self.unlock_environment(environment)
 
-    def remove_environment(self, environment):
+    def remove_environment(self, environment, flush=True):
         """ Deletes an existing environment from the environment directory by name
 
-        :param environment: Environment name
+        :param environment: str Environment name
+        :param flush: bool Flush environment caches
         :return:
         """
         repo_path = self.environment_repo_path(environment)
@@ -541,6 +599,9 @@ class EnvironmentManager(object):
         else:
             if not self.noop:
                 shutil.rmtree(repo_path)
+
+        if flush:
+            self.flush_environment_caches()
 
     @staticmethod
     def added_environments(installed_set, available_set):
@@ -809,14 +870,16 @@ class EnvironmentManager(object):
             installed_set=set(self.list_installed_environments()))
 
         for environment in added:
-            self.add_environment(environment)
+            self.add_environment(environment, flush=False)
 
         for environment in existing:
-            self.update_environment(environment, force=force)
+            self.update_environment(environment, force=force, flush=False)
 
-        self.cleanup_environments(removed)
+        self.cleanup_environments(removed, flush=False)
 
-    def cleanup_environments(self, removed=None):
+        self.flush_environment_caches()
+
+    def cleanup_environments(self, removed=None, flush=True):
         """ Removes environments from local disk
 
         - If `removed` is an iterable, those environments will be removed from local disk.
@@ -826,12 +889,13 @@ class EnvironmentManager(object):
         Also removes any stale environment clones (which might have been left behind due to an error during deploy)
 
         :param removed: list of environments to be removed, optional
+        :param flush: bool Trigger an environment cache flush as part of this request
         :return:
         """
         if removed is None:
             removed = self.list_obsolete_environments()
 
         for environment in removed:
-            self.remove_environment(environment)
+            self.remove_environment(environment, flush=flush)
 
         self.cleanup_stale_environment_clones()

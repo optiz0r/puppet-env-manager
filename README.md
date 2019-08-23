@@ -37,6 +37,8 @@ On Fedora 30+, the following is also needed in `~/.rpmmacros`:
 
 * Clone the thirdparty directory into newly created environment
   clones to speed up puppet module installation using librarian
+* Add support for triggering a puppet master environment cache flush
+  after modifying environment content
 
 ## v0.3.1 - 2019-08-19
 

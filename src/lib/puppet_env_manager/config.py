@@ -1,5 +1,7 @@
 import logging
 import os
+import socket
+
 import yaml
 
 
@@ -80,6 +82,11 @@ class EnvironmentManagerConfig(BaseConfig):
     ENVIRONMENT_NAME_BLACKLIST = r'^live_.*$'
     UPSTREAM_REMOTE = 'origin'
     LIBRARIAN_PUPPET_PATH = '/opt/puppetlabs/puppet/bin/librarian-puppet'
+    PUPPET_CERT_FILE = '/etc/puppetlabs/puppet/ssl/certs/{0}.pem'.format(socket.getfqdn())
+    PUPPET_KEY_FILE = '/etc/puppetlabs/puppet/ssl/private_keys/{0}.pem'.format(socket.getfqdn())
+    PUPPET_CA_FILE = '/etc/puppetlabs/puppet/ssl/certs/ca.pem'
+    PUPPET_SERVER = socket.getfqdn()
+    FLUSH_ENVIRONMENT_CACHE = True
 
     def __init__(self, path=DEFAULT_PATH):
         super(EnvironmentManagerConfig, self).__init__(path=path)
@@ -90,4 +97,9 @@ class EnvironmentManagerConfig(BaseConfig):
             'blacklist': self.ENVIRONMENT_NAME_BLACKLIST,
             'upstream_remote': self.UPSTREAM_REMOTE,
             'librarian_puppet_path': self.LIBRARIAN_PUPPET_PATH,
+            'puppet_cert_file': self.PUPPET_CERT_FILE,
+            'puppet_key_file': self.PUPPET_KEY_FILE,
+            'puppet_ca_file': self.PUPPET_CA_FILE,
+            'puppet_server': self.PUPPET_SERVER,
+            'flush_environment_cache': self.FLUSH_ENVIRONMENT_CACHE,
         }
