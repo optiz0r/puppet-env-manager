@@ -31,3 +31,16 @@ class TestNames(unittest.TestCase):
 
         for mapping in mappings:
             self.assertEqual(self.manager.identify_environment_name_from_path(mapping[0]), mapping[1])
+
+    def test_identify_environment_name_from_clone_name(self):
+        """ Verifies the environment name is correctly extracted from a clone name
+        """
+
+        mappings = [
+            ('test__abc', 'test'),
+            ('test', 'test'),
+            ('test__abc__def', 'test'),
+        ]
+
+        for mapping in mappings:
+            self.assertEqual(mapping[1], self.manager.identify_environment_name_from_clone_name(mapping[0]))

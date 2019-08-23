@@ -322,6 +322,18 @@ class EnvironmentManager(object):
         """
         return os.path.basename(environment_path.rstrip(os.path.sep))
 
+    @staticmethod
+    def identify_environment_name_from_clone_name(clone_name):
+        """ Returns the name of an environment from a clone path
+
+        Since clone paths are formed of an environment name and a random suffix
+        separated by __, returns the first part
+
+        :param clone_name: str Name of an environment clone
+        :return: str Environment name
+        """
+        return clone_name.partition('__')[0]
+
     def upstream_ref(self, environment):
         """ Returns the upstream ref for the given environment from the master repo
 
@@ -688,6 +700,14 @@ class EnvironmentManager(object):
         # Look for candidate environments which aren't the target of any symlinks
         for candidate in candidates:
             if candidate not in links:
+                environment_path = self.environment_repo_path(
+                    self.identify_environment_name_from_clone_name(
+                        self.identify_environment_name_from_path(candidate)))
+                lock = LockFile(environment_path)
+                if lock.is_locked():
+                    # Ignore locked environments, might be in use
+                    continue
+
                 self.logger.debug("Stale environment detected: {0}".format(candidate))
                 stale_clones.append(candidate)
 
@@ -869,11 +889,17 @@ class EnvironmentManager(object):
             available_set=set(self.list_available_environments()),
             installed_set=set(self.list_installed_environments()))
 
-        for environment in added:
-            self.add_environment(environment, flush=False)
-
         for environment in existing:
-            self.update_environment(environment, force=force, flush=False)
+            try:
+                self.update_environment(environment, force=force, flush=False)
+            except Exception as e:
+                self.logger.error("Failed to update environment {0} with error {1}".format(environment, str(e)))
+
+        for environment in added:
+            try:
+                self.add_environment(environment, flush=False)
+            except Exception as e:
+                self.logger.error("Failed to add environment {0} with error {1}".format(environment, str(e)))
 
         self.cleanup_environments(removed, flush=False)
 
@@ -896,6 +922,9 @@ class EnvironmentManager(object):
             removed = self.list_obsolete_environments()
 
         for environment in removed:
-            self.remove_environment(environment, flush=flush)
+            try:
+                self.remove_environment(environment, flush=flush)
+            except Exception as e:
+                self.logger.error("Failed to remove environment {0} with error {1}".format(environment, str(e)))
 
         self.cleanup_stale_environment_clones()

@@ -374,11 +374,12 @@ class TestUpdates(unittest.TestCase):
         mock_rmtree.assert_called_once_with('/etc/puppetlabs/code/test__dir')
         self.manager.unlock_environment.assert_called_once_with('test')
 
+    @patch('puppet_env_manager.manager.LockFile')
     @patch('puppet_env_manager.manager.os.path.isdir')
     @patch('puppet_env_manager.manager.os.path.islink')
     @patch('puppet_env_manager.manager.os.readlink')
     @patch('puppet_env_manager.manager.os.listdir')
-    def test_list_stale_environment_clones(self, mock_listdir, mock_readlink, mock_islink, mock_isdir):
+    def test_list_stale_environment_clones(self, mock_listdir, mock_readlink, mock_islink, mock_isdir, mock_lock):
         mock_listdir.return_value = [
             '.', '..', '.puppet.git', 'production', 'production.clone',
             'test', 'test__clone', 'test__123abc', 'live_test'
@@ -391,6 +392,8 @@ class TestUpdates(unittest.TestCase):
             '/etc/puppetlabs/code/test__clone',
         ]
         mock_isdir.return_value = True
+        mock_lock.return_value = mock_lock
+        mock_lock.is_locked.return_value = False
 
         stale_clones = self.manager.list_stale_environment_clones()
         self.assertListEqual(stale_clones, ['/etc/puppetlabs/code/test__123abc'])
@@ -398,6 +401,32 @@ class TestUpdates(unittest.TestCase):
         mock_listdir.assert_called_once_with('/etc/puppetlabs/code')
         self.assertEqual(mock_islink.call_count, 5)
         self.assertEqual(mock_isdir.call_count, 3)
+
+    @patch('puppet_env_manager.manager.LockFile')
+    @patch('puppet_env_manager.manager.os.path.isdir')
+    @patch('puppet_env_manager.manager.os.path.islink')
+    @patch('puppet_env_manager.manager.os.readlink')
+    @patch('puppet_env_manager.manager.os.listdir')
+    def test_list_stale_environment_clones_with_locked(self, mock_listdir, mock_readlink, mock_islink, mock_isdir, mock_lock):
+        mock_listdir.return_value = [
+            'test', 'test__clone', 'test__123abc',
+        ]
+        mock_islink.side_effect = [
+            True, False, False
+        ]
+        mock_readlink.side_effect = [
+            '/etc/puppetlabs/code/test__clone',
+        ]
+        mock_isdir.return_value = True
+        mock_lock.return_value = mock_lock
+        mock_lock.is_locked.return_value = True
+
+        stale_clones = self.manager.list_stale_environment_clones()
+        self.assertListEqual(stale_clones, [])
+
+        mock_listdir.assert_called_once_with('/etc/puppetlabs/code')
+        self.assertEqual(mock_islink.call_count, 3)
+        self.assertEqual(mock_isdir.call_count, 2)
 
     # noinspection PyUnresolvedReferences
     @patch('puppet_env_manager.manager.shutil.rmtree')

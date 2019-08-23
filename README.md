@@ -38,6 +38,12 @@ make publish
 
 # Changelog
 
+## NEXT - 2019-08-23
+
+* Ignore locked environments during stale cleanup
+  to avoid deleting a new clone being created by
+  another process running in parallel
+
 ## v0.4.0 - 2019-08-23
 
 * Clone the thirdparty directory into newly created environment
