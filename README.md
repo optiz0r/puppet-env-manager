@@ -31,6 +31,11 @@ On Fedora 30+, the following is also needed in `~/.rpmmacros`:
 %__brp_mangle_shebangs_exclude ^/usr/bin/python
 ```
 
+To automatically sign and publish to spacewalk, run:
+```
+make publish
+```
+
 # Changelog
 
 ## v0.4.0 - 2019-08-23
