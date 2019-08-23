@@ -278,16 +278,18 @@ class TestUpdates(unittest.TestCase):
     @patch('puppet_env_manager.manager.os.symlink')
     @patch('puppet_env_manager.manager.os.readlink')
     @patch('puppet_env_manager.manager.os.listdir')
+    @patch('puppet_env_manager.manager.os.path.exists')
     @patch('puppet_env_manager.manager.os.path.islink')
     @patch('puppet_env_manager.manager.subprocess.Popen')
     @patch('puppet_env_manager.manager.Repo')
     def test_update_environment_link(
-            self, mock_repo, mock_subprocess, mock_islink, mock_listdir, mock_readlink,
+            self, mock_repo, mock_subprocess, mock_islink, mock_exists, mock_listdir, mock_readlink,
             mock_symlink, mock_rename, mock_rmtree, mock_copytree):
         mock_subprocess.return_value = mock_subprocess
         mock_subprocess.communicate.return_value = ('', '')
         mock_subprocess.poll.return_value = 0
         mock_repo.return_value = mock_repo
+        mock_exists.return_value = True
         mock_islink.return_value = True
         mock_readlink.return_value = '/etc/puppetlabs/code/test__old'
         mock_listdir.return_value = ['one', 'two']
@@ -317,7 +319,9 @@ class TestUpdates(unittest.TestCase):
         ])
         self.manager.install_puppet_modules.assert_called_once_with('/etc/puppetlabs/code/test__new')
         self.manager.generate_resource_type_cache.assert_called_once_with('/etc/puppetlabs/code/test__new', force=False)
-        mock_islink.assert_called_once_with('/etc/puppetlabs/code/test')
+        mock_islink.assert_has_calls([
+            call('/etc/puppetlabs/code/test'), call('/etc/puppetlabs/code/test')
+        ])
         mock_readlink.assert_called_once_with('/etc/puppetlabs/code/test')
         mock_symlink.assert_called_once_with('/etc/puppetlabs/code/test__new', '/etc/puppetlabs/code/test__link')
         mock_rename.assert_called_once_with('/etc/puppetlabs/code/test__link', '/etc/puppetlabs/code/test')
@@ -331,17 +335,19 @@ class TestUpdates(unittest.TestCase):
     @patch('puppet_env_manager.manager.os.symlink')
     @patch('puppet_env_manager.manager.os.readlink')
     @patch('puppet_env_manager.manager.os.listdir')
+    @patch('puppet_env_manager.manager.os.path.exists')
     @patch('puppet_env_manager.manager.os.path.islink')
     @patch('puppet_env_manager.manager.subprocess.Popen')
     @patch('puppet_env_manager.manager.Repo')
     def test_update_environment_dir(
-            self, mock_repo, mock_subprocess, mock_islink, mock_listdir, mock_readlink,
+            self, mock_repo, mock_subprocess, mock_islink, mock_exists, mock_listdir, mock_readlink,
             mock_symlink, mock_rename, mock_rmtree, mock_copytree):
         mock_subprocess.return_value = mock_subprocess
         mock_subprocess.communicate.return_value = ('', '')
         mock_subprocess.poll.return_value = 0
         mock_repo.return_value = mock_repo
         mock_islink.return_value = False
+        mock_exists.return_value = True
         mock_readlink.return_value = '/etc/puppetlabs/code/test__old'
         mock_listdir.return_value = ['one', 'two']
         self.manager.check_sync = Mock(return_value=False)
@@ -368,11 +374,28 @@ class TestUpdates(unittest.TestCase):
         ])
         self.manager.install_puppet_modules.assert_called_once_with('/etc/puppetlabs/code/test__new')
         self.manager.generate_resource_type_cache.assert_called_once_with('/etc/puppetlabs/code/test__new', force=False)
-        mock_islink.assert_called_once_with('/etc/puppetlabs/code/test')
+        mock_islink.assert_has_calls([
+            call('/etc/puppetlabs/code/test'), call('/etc/puppetlabs/code/test')
+        ])
         mock_rename.assert_called_once_with('/etc/puppetlabs/code/test', '/etc/puppetlabs/code/test__dir')
         mock_symlink.assert_called_once_with('/etc/puppetlabs/code/test__new', '/etc/puppetlabs/code/test')
         mock_rmtree.assert_called_once_with('/etc/puppetlabs/code/test__dir')
         self.manager.unlock_environment.assert_called_once_with('test')
+
+    # noinspection PyUnresolvedReferences
+    @patch('puppet_env_manager.manager.os.unlink')
+    @patch('puppet_env_manager.manager.os.path.exists')
+    @patch('puppet_env_manager.manager.os.path.islink')
+    def test_update_environment_dir_dangling_symlink(
+            self, mock_islink, mock_exists, mock_unlink):
+        mock_islink.return_value = True
+        mock_exists.return_value = False
+        self.manager.add_environment = Mock()
+
+        self.manager.update_environment('test', force=False)
+
+        mock_unlink.assert_called_once_with('/etc/puppetlabs/code/test')
+        self.manager.add_environment.assert_called_once_with('test', flush=True)
 
     @patch('puppet_env_manager.manager.LockFile')
     @patch('puppet_env_manager.manager.os.path.isdir')

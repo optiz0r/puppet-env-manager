@@ -496,6 +496,16 @@ class EnvironmentManager(object):
 
         self.lock_environment(environment)
 
+        if os.path.islink(repo_path) and not os.path.exists(repo_path):
+            # Handle dangling symlink
+            self.logger.warning(
+                self._noop("Dangling environment symlink detected for {0}, deleting and re-adding".format(environment)))
+            if not self.noop:
+                os.unlink(repo_path)
+            self.unlock_environment(environment)
+            self.add_environment(environment, flush=flush)
+            return
+
         repo = Repo(repo_path)
 
         upstream_ref = self.upstream_ref(environment)
