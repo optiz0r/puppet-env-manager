@@ -412,3 +412,69 @@ class TestUpdates(unittest.TestCase):
             call('/etc/puppetlabs/code/test__987fed'),
         ])
         self.manager.unlock_environment.assert_has_calls([call('test'), call('test')])
+
+
+class TestEnvironmentCacheFlushing(unittest.TestCase):
+    def setUp(self):
+        self.manager = EnvironmentManager(environment_dir='/etc/puppetlabs/code', validate=False)
+        self.manager.logger = Mock()
+        self.manager.puppet_server = 'localhost'
+        self.manager.puppet_cert_file = '/etc/puppetlabs/puppet/ssl/certs/localhost.pem'
+        self.manager.puppet_key_file = '/etc/puppetlabs/puppet/ssl/private_keys/localhost.pem'
+        self.manager.puppet_ca_file = '/etc/puppetlabs/puppet/ssl/certs/ca.pem'
+
+    @patch('puppet_env_manager.manager.requests')
+    def test_disabled_all_environments_cache_flush(self, mock_requests):
+        self.manager.flush_environment_cache = False
+        self.manager.flush_environment_caches()
+        self.manager.logger.debug.assert_called_with("Skipping environment flush")
+        self.assertEqual(0, mock_requests.delete.call_count, "requests.delete should not have been called")
+
+    @patch('puppet_env_manager.manager.requests')
+    def test_disabled_single_environment_cache_flush(self, mock_requests):
+        self.manager.flush_environment_cache = False
+        self.manager.flush_environment_caches(environment="test")
+        self.manager.logger.debug.assert_called_with("Skipping environment flush")
+        self.assertEqual(0, mock_requests.delete.call_count, "requests.delete should not have been called")
+
+    @patch('puppet_env_manager.manager.requests')
+    def test_all_environments_cache_flush(self, mock_requests):
+        mock_requests.delete.return_value = Mock(status_code=204)
+        self.manager.flush_environment_caches()
+        mock_requests.delete.assert_called_with(
+            'https://localhost:8140/puppet-admin-api/v1/environment-cache',
+            params={},
+            cert=(
+                '/etc/puppetlabs/puppet/ssl/certs/localhost.pem',
+                '/etc/puppetlabs/puppet/ssl/private_keys/localhost.pem'),
+            verify='/etc/puppetlabs/puppet/ssl/certs/ca.pem',
+        )
+
+    @patch('puppet_env_manager.manager.requests')
+    def test_single_environment_cache_flush(self, mock_requests):
+        mock_requests.delete.return_value = Mock(status_code=204)
+        self.manager.flush_environment_caches(environment='test')
+        mock_requests.delete.assert_called_with(
+            'https://localhost:8140/puppet-admin-api/v1/environment-cache',
+            params={'environment': 'test'},
+            cert=(
+                '/etc/puppetlabs/puppet/ssl/certs/localhost.pem',
+                '/etc/puppetlabs/puppet/ssl/private_keys/localhost.pem'),
+            verify='/etc/puppetlabs/puppet/ssl/certs/ca.pem',
+        )
+
+    @patch('puppet_env_manager.manager.requests')
+    def test_single_environment_cache_flush_forbidden(self, mock_requests):
+        mock_requests.delete.return_value = Mock(status_code=403, text='Forbidden')
+        self.manager.flush_environment_caches(environment='test')
+        mock_requests.delete.assert_called_with(
+            'https://localhost:8140/puppet-admin-api/v1/environment-cache',
+            params={'environment': 'test'},
+            cert=(
+                '/etc/puppetlabs/puppet/ssl/certs/localhost.pem',
+                '/etc/puppetlabs/puppet/ssl/private_keys/localhost.pem'),
+            verify='/etc/puppetlabs/puppet/ssl/certs/ca.pem',
+        )
+        self.manager.logger.warning.assert_called_with(
+            'Failed to flush environment cache with error 403: Forbidden'
+        )
