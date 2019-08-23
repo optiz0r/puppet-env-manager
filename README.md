@@ -33,6 +33,11 @@ On Fedora 30+, the following is also needed in `~/.rpmmacros`:
 
 # Changelog
 
+## NEXT - TBC
+
+* Clone the thirdparty directory into newly created environment
+  clones to speed up puppet module installation using librarian
+
 ## v0.3.1 - 2019-08-19
 
 * Ignore `__` paths as clones and don't try to delete them during
