@@ -1,4 +1,5 @@
 import os
+import setuptools
 
 from distutils.core import setup
 from puppet_env_manager import VERSION
@@ -10,11 +11,10 @@ setup(
     author="Ben Roberts",
     author_email="ben.roberts@gsacapital.com",
     url="https://github.com/optiz0r/puppet-env-manager/",
-    package_dir={'': 'src/lib'},
-    packages=['puppet_env_manager'],
+    packages=setuptools.find_packages(),
     package_data={'demo': ['data/*']},
     scripts=[
-        'src/bin/puppet-env-manager',
+        'bin/puppet-env-manager',
     ],
     data_files=[
         ('/etc/puppet-env-manager', []),

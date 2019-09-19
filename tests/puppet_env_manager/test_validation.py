@@ -22,14 +22,14 @@ class TestValidation(unittest.TestCase):
         with self.assertRaises(InvalidConfiguration) as cm:
             self.manager.validate_settings()
 
-        self.assertEqual(cm.exception.message, 'Git URL must be specified')
+        self.assertEqual(cm.exception.args[0], 'Git URL must be specified')
 
     def test_validate_upstream_repo(self):
         self.manager.upstream_remote = None
         with self.assertRaises(InvalidConfiguration) as cm:
             self.manager.validate_settings()
 
-        self.assertEqual(cm.exception.message, 'Upstream remote name must be specified')
+        self.assertEqual(cm.exception.args[0], 'Upstream remote name must be specified')
 
     @patch('puppet_env_manager.manager.os.path.exists', return_value=True)
     def test_validate_environment_dir_exists(self, mock_exists):
@@ -42,7 +42,7 @@ class TestValidation(unittest.TestCase):
             self.manager.validate_settings()
 
         mock_exists.assert_any_call('/etc/puppetlabs/code')
-        self.assertEqual(cm.exception.message, 'Environment directory /etc/puppetlabs/code not found or not readable')
+        self.assertEqual(cm.exception.args[0], 'Environment directory /etc/puppetlabs/code not found or not readable')
 
 
     # TODO: missing tests

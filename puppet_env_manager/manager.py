@@ -764,6 +764,7 @@ class EnvironmentManager(object):
         version_string = ".".join([str(i) for i in version_info])
 
         known_paths = [
+            '/usr/share/git/contrib/workdir/git-new-workdir',
             '/usr/share/doc/git/contrib/workdir/git-new-workdir',
             '/usr/share/doc/git-{0}/contrib/workdir/git-new-workdir'.format(version_string),
         ]
