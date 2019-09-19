@@ -33,10 +33,15 @@ On Fedora 30+, the following is also needed in `~/.rpmmacros`:
 
 To automatically sign and publish to spacewalk, run:
 ```
-make publish
+make publish REPO="company-extras"
 ```
 
 # Changelog
+
+## v0.4.2 - 2019-09-19
+
+* Remove internal references from git history ready for public release
+* Update project layout for external packaging
 
 ## v0.4.1 - 2019-08-23
 
