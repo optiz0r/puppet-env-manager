@@ -11,7 +11,7 @@ setup(
     author="Ben Roberts",
     author_email="ben.roberts@gsacapital.com",
     url="https://github.com/optiz0r/puppet-env-manager/",
-    packages=setuptools.find_packages(),
+    packages=setuptools.find_packages(exclude=['tests*']),
     package_data={'demo': ['data/*']},
     scripts=[
         'bin/puppet-env-manager',
