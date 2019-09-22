@@ -440,6 +440,8 @@ class EnvironmentManager(object):
     def add_environment(self, environment, flush=True):
         """ Checks out a new environment into the environment directory by name
 
+        Returns True if added, False if failed
+
         :param environment: str Environment name
         :param flush: bool Flush environment caches
         :return:
@@ -447,7 +449,7 @@ class EnvironmentManager(object):
         # Safety first
         if not self.validate_environment_name(environment):
             self.logger.warning("Not adding environment {0} with invalid name".format(environment))
-            return
+            return False
 
         self.lock_environment(environment)
 
@@ -469,7 +471,7 @@ class EnvironmentManager(object):
 
                 self.unlock_environment(environment)
 
-                return
+                return False
 
             os.symlink(clone_path, environment_path)
             self.logger.debug("Linked {0} to {1}".format(environment_path, clone_path))
@@ -482,8 +484,12 @@ class EnvironmentManager(object):
 
         self.unlock_environment(environment)
 
+        return True
+
     def update_environment(self, environment, force=False, flush=True):
         """ Updates an existing environment in the environment directory by name
+
+        returns True if updated, None if already up to date, False if failed to update
 
         :param environment: str Environment name
         :param force: bool Force reset of environment even if it already appears to be up to date
@@ -492,7 +498,7 @@ class EnvironmentManager(object):
         """
         repo_path = self.environment_repo_path(environment)
         if not repo_path:
-            return
+            return False
 
         self.lock_environment(environment)
 
@@ -503,8 +509,7 @@ class EnvironmentManager(object):
             if not self.noop:
                 os.unlink(repo_path)
             self.unlock_environment(environment)
-            self.add_environment(environment, flush=flush)
-            return
+            return self.add_environment(environment, flush=flush)
 
         repo = Repo(repo_path)
 
@@ -513,7 +518,7 @@ class EnvironmentManager(object):
             self.logger.info("{0} already up to date at {1}".format(environment, upstream_ref.commit.hexsha))
             if not force:
                 self.unlock_environment(environment)
-                return
+            return None
 
         self.logger.info(self._noop("Resetting {0} to {1} ({2})".format(
             environment, upstream_ref.commit.hexsha, upstream_ref.name)))
@@ -534,7 +539,7 @@ class EnvironmentManager(object):
             if retcode != 0:
                 self.logger.error("Failed to add environment {0}, exited {1}: {2}, {3}".format(
                     environment, retcode, output, stderr))
-                return
+                return False
 
         # Copy the modules before checking for changes, since this is quicker than retrieving
         # them from the original source
@@ -594,8 +599,12 @@ class EnvironmentManager(object):
 
         self.unlock_environment(environment)
 
+        return True
+
     def remove_environment(self, environment, flush=True):
         """ Deletes an existing environment from the environment directory by name
+
+        Returns True if removed, False if failed
 
         :param environment: str Environment name
         :param flush: bool Flush environment caches
@@ -604,7 +613,7 @@ class EnvironmentManager(object):
         repo_path = self.environment_repo_path(environment)
         if not repo_path:
             self.logger.warning("Not removing environment {0} with invalid name".format(environment))
-            return
+            return False
 
         self.logger.info(self._noop("Deleting environment {0}".format(environment)))
         if os.path.islink(repo_path):
@@ -624,6 +633,8 @@ class EnvironmentManager(object):
 
         if flush:
             self.flush_environment_caches()
+
+        return True
 
     @staticmethod
     def added_environments(installed_set, available_set):
@@ -900,21 +911,52 @@ class EnvironmentManager(object):
             available_set=set(self.list_available_environments()),
             installed_set=set(self.list_installed_environments()))
 
+        result_added = []
+        result_updated = []
+        result_removed = []
+        result_unchanged = []
+        result_failed = []
+
         for environment in existing:
             try:
-                self.update_environment(environment, force=force, flush=False)
+                result = self.update_environment(environment, force=force, flush=False)
+                if result is True:
+                    result_updated.append(environment)
+                elif result is None:
+                    result_unchanged.append(environment)
+                else:
+                    result_failed.append(environment)
             except Exception as e:
                 self.logger.error("Failed to update environment {0} with error {1}".format(environment, str(e)))
+                result_failed.append(environment)
 
         for environment in added:
             try:
-                self.add_environment(environment, flush=False)
+                result = self.add_environment(environment, flush=False)
+                if result:
+                    result_added.append(environment)
+                else:
+                    result_failed.append(environment)
             except Exception as e:
                 self.logger.error("Failed to add environment {0} with error {1}".format(environment, str(e)))
+                result_failed.append(environment)
 
-        self.cleanup_environments(removed, flush=False)
+        for environment in removed:
+            result = self.cleanup_environments([environment], flush=False)
+            if result:
+                result_removed.append(environment)
+            else:
+                result_failed.append(environment)
 
         self.flush_environment_caches()
+
+        return {
+            'added': result_added,
+            'updated': result_updated,
+            'removed': result_removed,
+            'unchanged': result_unchanged,
+            'failed': result_failed,
+        }
 
     def cleanup_environments(self, removed=None, flush=True):
         """ Removes environments from local disk
@@ -932,10 +974,15 @@ class EnvironmentManager(object):
         if removed is None:
             removed = self.list_obsolete_environments()
 
+        result = True
+
         for environment in removed:
             try:
                 self.remove_environment(environment, flush=flush)
             except Exception as e:
                 self.logger.error("Failed to remove environment {0} with error {1}".format(environment, str(e)))
+                result = False
 
         self.cleanup_stale_environment_clones()
+
+        return result

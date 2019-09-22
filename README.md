@@ -38,6 +38,10 @@ make publish REPO="company-extras"
 
 # Changelog
 
+## NEXT - TBC
+
+* Allow `update_all_environments` to return summary of changes made
+
 ## v0.4.2 - 2019-09-19
 
 * Remove internal references from git history ready for public release
