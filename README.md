@@ -41,6 +41,10 @@ make publish REPO="company-extras"
 ## NEXT - TBC
 
 * Allow `update_all_environments` to return summary of changes made
+* Skip running `install_puppet_modules` if the `Puppetfile.lock` has not
+  been modified (unless `force` option is used).
+  Since this is the slowest operation, it will speed up deployments
+  significantly when no changes have been made.
 
 ## v0.4.2 - 2019-09-19
 

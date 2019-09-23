@@ -357,6 +357,19 @@ class EnvironmentManager(object):
         in_sync = (upstream_ref.commit == repo.head.commit) and not repo.is_dirty()
         return in_sync
 
+    @staticmethod
+    def has_puppetfile_changed(from_commit, to_commit):
+        """ Checks if the Puppetfile.lock has been modified between two commits
+
+        Used to determine whether module install should be run. Returns true if the Puppetfile has been
+        modified, False if it has the same content.
+
+        :param from_commit: git.objects.commit.Commit Object representing the original git commit
+        :param to_commit: git.objects.commit.Commit Object representing the new git commit
+        :return: bool
+        """
+        return from_commit.tree.join("Puppetfile.lock").hexsha == to_commit.tree.join("Puppetfile.lock").hexsha
+
     def install_puppet_modules(self, environment_path):
         """ Installs all puppet modules using librarian-puppet
 
@@ -512,19 +525,25 @@ class EnvironmentManager(object):
             return self.add_environment(environment, flush=flush)
 
         repo = Repo(repo_path)
+        original_commit = repo.head.commit
 
         upstream_ref = self.upstream_ref(environment)
+        new_commit = upstream_ref.commit
+
         if self.check_sync(repo, upstream_ref):
-            self.logger.info("{0} already up to date at {1}".format(environment, upstream_ref.commit.hexsha))
+            self.logger.info("{0} already up to date at {1}".format(environment, new_commit.hexsha))
             if not force:
                 self.unlock_environment(environment)
             return None
 
         self.logger.info(self._noop("Resetting {0} to {1} ({2})".format(
-            environment, upstream_ref.commit.hexsha, upstream_ref.name)))
+            environment, new_commit.hexsha, upstream_ref.name)))
 
         if not self.noop:
-            repo.head.reset(upstream_ref.commit)
+            repo.head.reset(new_commit)
+
+        # Check whether the Puppetfile has been modified between these two commits
+        update_modules = self.has_puppetfile_changed(original_commit, new_commit)
 
         # Clone the environment first, so we can do the update atomically
         clone_path = self.generate_unique_environment_path(environment)
@@ -552,7 +571,9 @@ class EnvironmentManager(object):
                 symlinks=True
             )
 
-        self.install_puppet_modules(clone_path)
+        if update_modules or force:
+            self.install_puppet_modules(clone_path)
+        
         self.generate_resource_type_cache(clone_path, force=force)
 
         if os.path.islink(repo_path):
