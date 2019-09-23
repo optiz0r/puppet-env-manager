@@ -4,7 +4,7 @@ PROJECT := puppet-env-manager
 ITERATION  := 1
 
 OS := $(shell facter -p operatingsystem 2>/dev/null)
-VERSION := $(shell ./setup.py --version 2>/dev/null)
+VERSION := $(shell python ./setup.py --version 2>/dev/null)
 REPO := example
 
 ifeq ($(OS),Fedora)
