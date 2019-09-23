@@ -38,7 +38,7 @@ make publish REPO="company-extras"
 
 # Changelog
 
-## NEXT - TBC
+## v0.4.3 - 2019-09-23
 
 * Allow `update_all_environments` to return summary of changes made
 * Skip running `install_puppet_modules` if the `Puppetfile.lock` has not
