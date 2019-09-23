@@ -368,7 +368,7 @@ class EnvironmentManager(object):
         :param to_commit: git.objects.commit.Commit Object representing the new git commit
         :return: bool
         """
-        return from_commit.tree.join("Puppetfile.lock").hexsha == to_commit.tree.join("Puppetfile.lock").hexsha
+        return from_commit.tree["Puppetfile.lock"].hexsha == to_commit.tree["Puppetfile.lock"].hexsha
 
     def install_puppet_modules(self, environment_path):
         """ Installs all puppet modules using librarian-puppet

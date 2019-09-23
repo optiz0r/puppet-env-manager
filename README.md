@@ -38,6 +38,10 @@ make publish REPO="company-extras"
 
 # Changelog
 
+## v0.4.4 - 2019-09-23
+
+* Restore compatibility with GitPython 0.3.2 for el6
+
 ## v0.4.3 - 2019-09-23
 
 * Allow `update_all_environments` to return summary of changes made
