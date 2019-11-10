@@ -20,7 +20,7 @@ setup(
         ('/etc/puppet-env-manager', []),
     ],
     install_requires=['lockfile', 'requests'],
-    extra_requires={
+    extras_require={
         'dev': [
             'mock',
         ]
