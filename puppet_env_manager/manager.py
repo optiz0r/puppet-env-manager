@@ -357,8 +357,7 @@ class EnvironmentManager(object):
         in_sync = (upstream_ref.commit == repo.head.commit) and not repo.is_dirty()
         return in_sync
 
-    @staticmethod
-    def has_puppetfile_changed(from_commit, to_commit):
+    def has_puppetfile_changed(self, from_commit, to_commit):
         """ Checks if the Puppetfile.lock has been modified between two commits
 
         Used to determine whether module install should be run. Returns true if the Puppetfile has been
@@ -368,7 +367,13 @@ class EnvironmentManager(object):
         :param to_commit: git.objects.commit.Commit Object representing the new git commit
         :return: bool
         """
-        return from_commit.tree["Puppetfile.lock"].hexsha == to_commit.tree["Puppetfile.lock"].hexsha
+        modified = from_commit.tree["Puppetfile.lock"].hexsha != to_commit.tree["Puppetfile.lock"].hexsha
+        self.logger.debug(
+            "Checking if Puppetfile.lock has changed between %s (%s) amd %s (%s): %s",
+            from_commit.hexsha, from_commit.tree["Puppetfile.lock"].hexsha,
+            to_commit.hexsha, to_commit.tree["Puppetfile.lock"].hexsha,
+            modified)
+        return modified
 
     def install_puppet_modules(self, environment_path):
         """ Installs all puppet modules using librarian-puppet
