@@ -38,7 +38,7 @@ make publish REPO="company-extras"
 
 # Changelog
 
-## NEXT - TBC
+## v0.4.5 - 2019-11-10
 
 * Fix `force` not reapplying changes
 * Fix detection pf Puppetfile.lock changing between commits
