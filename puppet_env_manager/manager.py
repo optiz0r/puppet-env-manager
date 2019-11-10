@@ -534,7 +534,7 @@ class EnvironmentManager(object):
             self.logger.info("{0} already up to date at {1}".format(environment, new_commit.hexsha))
             if not force:
                 self.unlock_environment(environment)
-            return None
+                return None
 
         self.logger.info(self._noop("Resetting {0} to {1} ({2})".format(
             environment, new_commit.hexsha, upstream_ref.name)))

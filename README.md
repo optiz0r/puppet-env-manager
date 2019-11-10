@@ -38,6 +38,10 @@ make publish REPO="company-extras"
 
 # Changelog
 
+## NEXT - TBC
+
+* Fix `force` not reapplying changes
+
 ## v0.4.4 - 2019-09-23
 
 * Restore compatibility with GitPython 0.3.2 for el6
