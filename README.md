@@ -42,6 +42,7 @@ make publish REPO="company-extras"
 
 * Fix `force` not reapplying changes
 * Fix detection pf Puppetfile.lock changing between commits
+* Switch librarian-puppet to v3 api when installing modules
 
 ## v0.4.4 - 2019-09-23
 

@@ -383,7 +383,7 @@ class EnvironmentManager(object):
         """
         self.logger.info(self._noop("Installing puppet modules in {0}".format(environment_path)))
 
-        cmd = [self.librarian_puppet_path, 'install']
+        cmd = [self.librarian_puppet_path, 'install', '--no-use-v1-api']
         self.logger.debug(self._noop("Running command: {0}".format(" ".join(cmd))))
         if not self.noop:
             process = subprocess.Popen(cmd, cwd=environment_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
