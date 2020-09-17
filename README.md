@@ -38,6 +38,10 @@ make publish REPO="company-extras"
 
 # Changelog
 
+## NEXT - TBC
+
+* Fix python 3.7 compatibility
+
 ## v0.4.5 - 2019-11-10
 
 * Fix `force` not reapplying changes

@@ -60,7 +60,7 @@ class EnvironmentManager(object):
 
         self.blacklist = blacklist
         # noinspection PyUnresolvedReferences,PyProtectedMember
-        if not isinstance(self.blacklist, re._pattern_type):
+        if not isinstance(self.blacklist, type(re.compile(''))):
             self.blacklist = re.compile(self.blacklist)
 
         self.master_repo_path = os.path.join(self.environment_dir, self.master_repo_name)
@@ -578,7 +578,7 @@ class EnvironmentManager(object):
 
         if update_modules or force:
             self.install_puppet_modules(clone_path)
-        
+
         self.generate_resource_type_cache(clone_path, force=force)
 
         if os.path.islink(repo_path):
