@@ -38,7 +38,7 @@ make publish REPO="company-extras"
 
 # Changelog
 
-## NEXT - TBC
+## v0.4.6 - 2020-09-17
 
 * Fix python 3.7 compatibility
 
