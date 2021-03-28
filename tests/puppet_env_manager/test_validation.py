@@ -24,7 +24,8 @@ class TestValidation(unittest.TestCase):
 
         self.assertEqual(cm.exception.args[0], 'Git URL must be specified')
 
-    def test_validate_upstream_repo(self):
+    @patch('puppet_env_manager.manager.os.path.exists', return_value=True)
+    def test_validate_upstream_repo(self, mock_exists):
         self.manager.upstream_remote = None
         with self.assertRaises(InvalidConfiguration) as cm:
             self.manager.validate_settings()
